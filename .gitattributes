@@ -1,0 +1,6 @@
+* text=auto eol=lf
+*.png binary
+*.icns binary
+.build/ export-ignore
+dist/ export-ignore
+.swiftpm/ export-ignore

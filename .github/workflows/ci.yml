@@ -1,0 +1,37 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-15, macos-15-intel]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Toolchain
+        run: swift --version
+      - name: Publication guard
+        run: |
+          python3 scripts/test_privacy_audit.py
+          python3 scripts/privacy_audit.py
+      - name: Synthetic tests
+        run: ./test.sh
+      - name: Native app build
+        run: ./build.sh
+      - name: Check packaged app
+        run: |
+          codesign --verify --deep --strict 'dist/Claudeway.app'
+          python3 scripts/privacy_audit.py --artifacts 'dist/Claudeway.app'

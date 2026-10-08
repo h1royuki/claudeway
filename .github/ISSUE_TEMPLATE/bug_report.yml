@@ -1,0 +1,27 @@
+name: Bug report
+description: Report a reproducible problem without private account data.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: "Do not upload live profiles, auth snapshots, transcripts, Keychain exports or unsanitized logs. See SECURITY.md for private vulnerability reporting."
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: Claudeway, macOS, Claude Desktop and optional Claude Code CLI versions.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+      description: Use synthetic account labels and project paths.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected and actual behavior
+    validations:
+      required: true
