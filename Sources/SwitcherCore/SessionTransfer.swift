@@ -9,12 +9,12 @@ public struct SessionTransferReport: Codable {
     /// Only completed changes belong in a user-facing notification.
     public var notificationBody: String? {
         var parts: [String] = []
-        if added > 0 { parts.append("Добавлено: \(added)") }
-        if updated > 0 { parts.append("Обновлено: \(updated)") }
+        if added > 0 { parts.append(L10n.text("Added: %@", String(added))) }
+        if updated > 0 { parts.append(L10n.text("Updated: %@", String(updated))) }
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
     public var summary: String {
-        note ?? "Чаты: добавлено \(added), обновлено \(updated), пропущено \(skipped)"
+        note.map(L10n.message) ?? L10n.text("Chats: added %@, updated %@, skipped %@", String(added), String(updated), String(skipped))
     }
 }
 
@@ -117,8 +117,8 @@ public enum SessionTransfer {
         }
         guard targets.count == 1, let destinationDirectory = targets.first else {
             report.note = targets.isEmpty
-                ? "Чаты: сначала создайте один локальный диалог в новом профиле"
-                : "Чаты: несколько организаций в профиле, перенос пропущен"
+                ? L10n.text("Chats: create a local conversation in the new profile first")
+                : L10n.text("Chats: multiple organizations in the profile; transfer skipped")
             return report
         }
         let allDirectories = Set((sources + [target]).flatMap(organizationDirectories))
@@ -149,7 +149,7 @@ public enum SessionTransfer {
                                          transcriptRoot: URL? = nil, requireStopped: () throws -> Void) throws -> SessionTransferReport {
         try requireStopped()
         guard let destination = sharedTargetDirectory(in: dataRoot, accountID: targetAccount, organizationID: targetOrganization, transcriptRoot: transcriptRoot) else {
-            return SessionTransferReport(note: "История: создайте локальный чат; организация ещё не определена")
+            return SessionTransferReport(note: L10n.text("History: create a local chat; organization not identified yet"))
         }
         let directories = Set(accounts.flatMap { sharedOrganizations(in: dataRoot, accountID: $0) })
         return try synchronizeDirectories(directories, destination, backupRoot, transcriptRoot, requireStopped)
@@ -208,7 +208,7 @@ public enum SessionTransfer {
         guard !changes.isEmpty else { return report }
         try requireStopped()
         try fm.createDirectory(at: backupRoot, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
-        guard isDirectory(backupRoot) else { throw StoreError.message("Небезопасный каталог резервных копий чатов.") }
+        guard isDirectory(backupRoot) else { throw StoreError.message(L10n.text("Unsafe chat backup directory.")) }
         let backup = backupRoot.appendingPathComponent(UUID().uuidString)
         try fm.createDirectory(at: backup, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
         report.backupDirectory = backup.path
@@ -228,8 +228,8 @@ public enum SessionTransfer {
                 // Recheck against concurrent external edits before replacing.
                 let currentAttributes = try? fm.attributesOfItem(atPath: change.destination.path)
                 if let previous = change.previous {
-                    guard regularData(change.destination) == previous else { throw StoreError.message("Запись чата изменилась во время переноса.") }
-                } else if currentAttributes != nil { throw StoreError.message("Новый чат появился во время переноса.") }
+                    guard regularData(change.destination) == previous else { throw StoreError.message(L10n.text("The chat record changed during transfer.")) }
+                } else if currentAttributes != nil { throw StoreError.message(L10n.text("A new chat appeared during transfer.")) }
                 applied.append(change)
                 try privateWrite(change.replacement, to: change.destination)
                 if change.previous == nil { report.added += 1 } else { report.updated += 1 }

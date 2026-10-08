@@ -63,12 +63,12 @@ public final class ProfileStore {
         try Disk.directory(root)
         guard lockFD < 0 else { return }
         let fd = open(root.appendingPathComponent("switcher.lock").path, O_CREAT | O_RDWR | O_NOFOLLOW, 0o600)
-        guard fd >= 0 else { throw StoreError.message("Не удалось открыть блокировку аккаунтов.") }
-        guard flock(fd, LOCK_EX | LOCK_NB) == 0 else { close(fd); throw StoreError.message("Claudeway уже запущен.") }
+        guard fd >= 0 else { throw StoreError.message(L10n.text("Could not open the account lock.")) }
+        guard flock(fd, LOCK_EX | LOCK_NB) == 0 else { close(fd); throw StoreError.message(L10n.text("Claudeway is already running.")) }
         lockFD = fd
     }
     private func requireLock() throws {
-        guard lockFD >= 0 else { throw StoreError.message("Нет эксклюзивного доступа к аккаунтам.") }
+        guard lockFD >= 0 else { throw StoreError.message(L10n.text("Exclusive account access unavailable.")) }
     }
     private func rawState() throws -> ProfileState {
         try requireLock()
@@ -76,16 +76,16 @@ public final class ProfileStore {
         let ids = Set(state.profiles.map(\.id))
         guard [1, 2].contains(state.version), !ids.isEmpty, ids.count == state.profiles.count,
               ids.contains(state.activeID), state.profiles.allSatisfy({ !$0.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }) else {
-            throw StoreError.message("Файл аккаунтов повреждён или имеет неизвестную версию.")
+            throw StoreError.message(L10n.text("The account file is damaged or has an unknown version."))
         }
         if let pending = state.pending {
-            guard ids.contains(pending.id), ids.contains(pending.previousID), pending.id != pending.previousID else { throw StoreError.message("Некорректное добавление аккаунта.") }
+            guard ids.contains(pending.id), ids.contains(pending.previousID), pending.id != pending.previousID else { throw StoreError.message(L10n.text("Invalid pending account addition.")) }
         }
         return state
     }
     public func load() throws -> ProfileState {
         let state = try rawState()
-        guard state.version == 2, state.profiles.allSatisfy({ $0.auth != nil }) else { throw StoreError.message("Сначала нужно перейти на общий профиль.") }
+        guard state.version == 2, state.profiles.allSatisfy({ $0.auth != nil }) else { throw StoreError.message(L10n.text("Migrate to a shared profile first.")) }
         return state
     }
     private func save(_ state: ProfileState) throws { try Disk.write(state, stateURL) }
@@ -94,7 +94,7 @@ public final class ProfileStore {
     public func initialize(requireStopped: () throws -> Void, settingsBaseID: UUID? = nil,
                            checkpoint: (String) throws -> Void = { _ in }) throws -> ProfileState {
         try requireLock()
-        guard !needsRecovery else { throw StoreError.message("Сначала восстановите прерванную операцию.") }
+        guard !needsRecovery else { throw StoreError.message(L10n.text("Recover the interrupted operation first.")) }
         if Disk.exists(stateURL) {
             let state = try rawState()
             if state.version == 2 { return try load() }
@@ -103,7 +103,7 @@ public final class ProfileStore {
         try requireStopped()
         try Disk.directory(live)
         let auth = try vault.capture(live)
-        let profile = Profile(name: "Основной", auth: auth, organizationID: discoverOrganization(in: live, account: auth.accountID))
+        let profile = Profile(name: L10n.text("Primary"), auth: auth, organizationID: discoverOrganization(in: live, account: auth.accountID))
         let state = ProfileState(profiles: [profile], activeID: profile.id, settingsBaseID: profile.id)
         try save(state)
         return state
@@ -116,20 +116,20 @@ public final class ProfileStore {
     }
     private func checkedName(_ raw: String, state: ProfileState, excluding: UUID? = nil) throws -> String {
         let name = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !name.isEmpty, name.count <= 60, !name.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }) else { throw StoreError.message("Введите название от 1 до 60 символов без переносов строк.") }
-        guard !state.profiles.contains(where: { $0.id != excluding && $0.name.localizedCaseInsensitiveCompare(name) == .orderedSame }) else { throw StoreError.message("Такое название уже есть.") }
+        guard !name.isEmpty, name.count <= 60, !name.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }) else { throw StoreError.message(L10n.text("Enter a name of 1–60 characters without line breaks.")) }
+        guard !state.profiles.contains(where: { $0.id != excluding && $0.name.localizedCaseInsensitiveCompare(name) == .orderedSame }) else { throw StoreError.message(L10n.text("This name is already in use.")) }
         return name
     }
     public func rename(_ id: UUID, to name: String) throws -> ProfileState {
-        guard !needsRecovery else { throw StoreError.message("Сначала восстановите прерванную операцию.") }
+        guard !needsRecovery else { throw StoreError.message(L10n.text("Recover the interrupted operation first.")) }
         var state = try load()
-        guard let i = state.profiles.firstIndex(where: { $0.id == id }) else { throw StoreError.message("Аккаунт не найден.") }
+        guard let i = state.profiles.firstIndex(where: { $0.id == id }) else { throw StoreError.message(L10n.text("Account not found.")) }
         state.profiles[i].name = try checkedName(name, state: state, excluding: id)
         try save(state); return state
     }
     public func add(_ name: String) throws -> ProfileState {
         var state = try load()
-        guard !needsRecovery, state.pending == nil else { throw StoreError.message("Завершите текущую операцию.") }
+        guard !needsRecovery, state.pending == nil else { throw StoreError.message(L10n.text("Finish the current operation.")) }
         let profile = Profile(name: try checkedName(name, state: state), auth: try vault.capture(nil))
         state.profiles.append(profile)
         state.pending = PendingProfile(id: profile.id, previousID: state.activeID)
@@ -138,10 +138,10 @@ public final class ProfileStore {
     public func finishAdding(requireStopped: () throws -> Void) throws -> ProfileState {
         var state = try load()
         guard !needsRecovery, let pending = state.pending, state.activeID == pending.id,
-              let index = state.profiles.firstIndex(where: { $0.id == pending.id }) else { throw StoreError.message("Сначала откройте добавляемый аккаунт.") }
+              let index = state.profiles.firstIndex(where: { $0.id == pending.id }) else { throw StoreError.message(L10n.text("Open the account being added first.")) }
         try requireStopped()
         let auth = try vault.capture(live, requireLogin: true)
-        guard !state.profiles.contains(where: { $0.id != pending.id && $0.auth?.accountID == auth.accountID }) else { throw StoreError.message("Этот аккаунт уже сохранён. Войдите в другой или отмените добавление.") }
+        guard !state.profiles.contains(where: { $0.id != pending.id && $0.auth?.accountID == auth.accountID }) else { throw StoreError.message(L10n.text("This account is already saved. Sign into another account or cancel.")) }
         state.profiles[index].auth = auth
         state.profiles[index].organizationID = discoverOrganization(in: live, account: auth.accountID)
         state.pending = nil
@@ -151,7 +151,7 @@ public final class ProfileStore {
     public func cancelAdding() throws -> ProfileState {
         var state = try load()
         guard let pending = state.pending else { return state }
-        guard !needsRecovery, state.activeID == pending.previousID else { throw StoreError.message("Сначала вернитесь к предыдущему аккаунту.") }
+        guard !needsRecovery, state.activeID == pending.previousID else { throw StoreError.message(L10n.text("Return to the previous account first.")) }
         state.profiles.removeAll { $0.id == pending.id }; state.pending = nil
         try save(state); return state
     }
@@ -159,17 +159,17 @@ public final class ProfileStore {
     @discardableResult
     public func switchProfile(to targetID: UUID, requireStopped: () throws -> Void,
                               checkpoint: (String) throws -> Void = { _ in }) throws -> ProfileState {
-        guard !needsRecovery else { throw StoreError.message("Есть незавершённая операция.") }
+        guard !needsRecovery else { throw StoreError.message(L10n.text("An operation is unfinished.")) }
         var original = try load()
         guard let targetProfile = original.profiles.first(where: { $0.id == targetID }), let target = targetProfile.auth,
-              let sourceIndex = original.profiles.firstIndex(where: { $0.id == original.activeID }) else { throw StoreError.message("Аккаунт не найден.") }
+              let sourceIndex = original.profiles.firstIndex(where: { $0.id == original.activeID }) else { throw StoreError.message(L10n.text("Account not found.")) }
         if original.activeID == targetID { return original }
         try requireStopped()
         try vault.validate(target)
         let actual = try AuthVault.account(in: live)
         if let actual, let expected = original.profiles[sourceIndex].auth?.accountID,
            actual != expected, original.pending?.id != original.activeID {
-            throw StoreError.message("В Claude выполнен вход в другой аккаунт вне переключателя. Верните выбранный вход или добавьте его через меню, чтобы не перезаписать сохранённую авторизацию.")
+            throw StoreError.message(L10n.text("Claude was signed into another account outside Claudeway. Restore the selected login or add the account through the menu to avoid overwriting saved authentication."))
         }
         let source = try vault.capture(live)
         if source.accountID != nil {
@@ -193,7 +193,7 @@ public final class ProfileStore {
         var state = try load()
         guard !needsRecovery, let i = state.profiles.firstIndex(where: { $0.id == state.activeID }),
               let account = state.profiles[i].auth?.accountID else {
-            return SessionTransferReport(note: "Войдите в аккаунт для отображения общей истории")
+            return SessionTransferReport(note: L10n.text("Sign in to display shared history"))
         }
         try requireStopped()
         if state.profiles[i].organizationID == nil {
@@ -211,7 +211,7 @@ public final class ProfileStore {
     @discardableResult
     public func recover(requireStopped: () throws -> Void) throws -> ProfileState {
         try requireLock(); try requireStopped()
-        if Disk.exists(legacyJournal) { throw StoreError.message("Осталось переключение версии 1.1. Завершите восстановление в версии 1.1 перед миграцией.") }
+        if Disk.exists(legacyJournal) { throw StoreError.message(L10n.text("A version 1.1 switch is unfinished. Complete recovery in version 1.1 before migrating.")) }
         if Disk.exists(migrationURL) {
             let journal = try JSONDecoder().decode(MigrationJournal.self, from: Disk.read(migrationURL))
             let current = try rawState()
@@ -232,10 +232,10 @@ public final class ProfileStore {
         guard Disk.exists(journalURL) else { return try load() }
         let journal = try JSONDecoder().decode(AuthJournal.self, from: Disk.read(journalURL))
         guard journal.version == 2, journal.original.version == 2,
-              journal.original.profiles.contains(where: { $0.id == journal.targetID && $0.auth == journal.target }) else { throw StoreError.message("Некорректный журнал авторизации.") }
+              journal.original.profiles.contains(where: { $0.id == journal.targetID && $0.auth == journal.target }) else { throw StoreError.message(L10n.text("Invalid authentication journal.")) }
         let state = try load()
         var expected = journal.original; expected.activeID = journal.targetID
-        guard state == journal.original || state == expected else { throw StoreError.message("Список аккаунтов изменился вне операции. Данные сохранены для ручного восстановления.") }
+        guard state == journal.original || state == expected else { throw StoreError.message(L10n.text("The account list changed outside this operation. Data is preserved for manual recovery.")) }
         if state == journal.original {
             try vault.apply(journal.source, to: live, restoreTransient: true, requireStopped: requireStopped)
             try save(journal.original)
@@ -246,7 +246,7 @@ public final class ProfileStore {
 
     private func migrate(_ legacy: ProfileState, baseID: UUID, requireStopped: () throws -> Void,
                          checkpoint: (String) throws -> Void) throws -> ProfileState {
-        guard legacy.pending == nil, legacy.profiles.contains(where: { $0.id == baseID }) else { throw StoreError.message("Завершите добавление аккаунта в версии 1.1 перед миграцией.") }
+        guard legacy.pending == nil, legacy.profiles.contains(where: { $0.id == baseID }) else { throw StoreError.message(L10n.text("Finish adding the account in version 1.1 before migrating.")) }
         try requireStopped()
         let backupID = UUID()
         let backup = root.appendingPathComponent("migration-backups/\(backupID.uuidString)")

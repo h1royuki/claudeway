@@ -33,6 +33,7 @@ else
   lipo -create "${BINARIES[@]}" -output "$APP/Contents/MacOS/Claudeway"
 fi
 cp "$ROOT/Info.plist" "$APP/Contents/Info.plist"
+cp -R "$BIN_DIR/Claudeway_SwitcherCore.bundle" "$APP/Contents/Resources/"
 ICONSET="$STAGE/AppIcon.iconset"
 mkdir -p "$ICONSET"
 for SIZE in 16 32 128 256 512; do

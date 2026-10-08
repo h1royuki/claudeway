@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.7.0 — 2026-10-08
+
+- English, Russian and Belarusian interface, including errors, notifications,
+  accessibility labels, usage durations and reset dates.
+- Settings → Language: System default plus explicit choices, saved between launches
+  and applied immediately without restarting Claude.
+- Legacy Russian journal messages and cached usage titles follow the selected
+  language without changing account names or recovery/duplicate-request state.
+- Complete localization catalogs, regression coverage and a packaged-resource check.
+
 ## 2.6.0 — 2026-10-08
 
 First publication-ready source and community binary release.

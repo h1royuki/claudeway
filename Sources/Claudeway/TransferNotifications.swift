@@ -21,8 +21,8 @@ import SwitcherCore
                 default: return // Respect the user's macOS notification preference.
                 }
                 let content = UNMutableNotificationContent()
-                content.title = "Чаты перенесены"
-                content.subtitle = "Аккаунт «\(account)»"
+                content.title = L10n.text("Chats transferred")
+                content.subtitle = L10n.text("Account “%@”", account)
                 content.body = body
                 content.threadIdentifier = "chat-transfers"
                 // No sound, badge, skipped counter, chat titles or filesystem paths.
@@ -30,7 +30,7 @@ import SwitcherCore
                 try await center.add(request)
             } catch {
                 // Notification delivery must not undo a successful account switch.
-                NSLog("Claudeway: не удалось показать уведомление о переносе чатов.")
+                NSLog("Claudeway: could not deliver the chat-transfer notification.")
             }
         }
     }

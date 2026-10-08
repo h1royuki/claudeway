@@ -29,8 +29,8 @@ import SwitcherCore
                 guard let account = profile.auth?.accountID else { continue }
                 let now = Date()
                 values[profile.id] = AccountUsage(profileID: profile.id, accountID: account, organizationID: profile.organizationID ?? UUID(), observedAt: now, source: "demo", windows: [
-                    UsageWindow(key: "five_hour", title: "5 ч", usedPercent: index == 0 ? 72 : 18, resetsAt: now.addingTimeInterval(index == 0 ? 5040 : 11400)),
-                    UsageWindow(key: "seven_day", title: "Нед.", usedPercent: index == 0 ? 41 : 63, resetsAt: now.addingTimeInterval(index == 0 ? 240000 : 410000))])
+                    UsageWindow(key: "five_hour", title: L10n.text("5 h"), usedPercent: index == 0 ? 72 : 18, resetsAt: now.addingTimeInterval(index == 0 ? 5040 : 11400)),
+                    UsageWindow(key: "seven_day", title: L10n.text("Wk"), usedPercent: index == 0 ? 41 : 63, resetsAt: now.addingTimeInterval(index == 0 ? 240000 : 410000))])
             }
             onChange?(); return
         }

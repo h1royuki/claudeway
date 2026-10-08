@@ -1,8 +1,8 @@
 # Publishing and releases
 
-The repository is ready for GitHub but contains no personal remote URL, owner,
-email or signing secrets. Version 2.6.0 is recorded in Info.plist. The prepared
-local repository has one clean initial commit and an annotated `v2.6.0` tag.
+The release version is recorded in Info.plist; every published version has its own
+annotated tag and versioned release notes. Never move an existing public tag. The
+repository contains no signing secrets or runtime account data.
 
 ## First publication
 
@@ -14,7 +14,7 @@ local repository has one clean initial commit and an annotated `v2.6.0` tag.
 ```sh
 git remote add origin https://github.com/OWNER/REPOSITORY.git
 git push -u origin main
-git push origin v2.6.0
+git push origin v2.7.0
 ```
 
 Replace OWNER/REPOSITORY with the repository you created. These commands publish

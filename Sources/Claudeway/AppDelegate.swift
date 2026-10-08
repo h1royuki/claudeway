@@ -42,7 +42,7 @@ import SwitcherCore
             if demo {
                 try writeDemoLogin()
                 state = try store.initialize(requireStopped: {})
-                state = try store.add("Рабочий")
+                state = try store.add(L10n.text("Work"))
                 if let id = state?.pending?.id {
                     try store.switchProfile(to: id, requireStopped: {})
                     try writeDemoLogin()
@@ -50,7 +50,7 @@ import SwitcherCore
                 }
                 refresh()
             } else if store.needsRecovery || store.needsPreparation {
-                run("Подготовка общего профиля…") { try await self.coordinator.prepare() }
+                run(L10n.text("Preparing shared profile…")) { try await self.coordinator.prepare() }
             } else {
                 state = try store.load()
                 refresh()
@@ -70,7 +70,7 @@ import SwitcherCore
                     if let journal = self.trigger?.journal { self.triggerWindow?.update(journal) }
                     if !self.menuOpen { self.refresh() }
                 }
-            } catch { triggerError = "Автозапуск окон недоступен: проверьте файлы настроек и журнала" }
+            } catch { triggerError = L10n.text("Automatic window starts unavailable: check the settings and journal files") }
         }
         refresh()
         if let state { usage.refresh(state, allowKeychainPrompt: CommandLine.arguments.contains("--enable-live-usage")) }
@@ -100,11 +100,11 @@ import SwitcherCore
         menu.delegate = self
         statusItem.button?.title = busy ? " …" : ""
         statusItem.button?.toolTip = nil
-        if demo { menu.addItem(item("Демо", enabled: false)) }
+        if demo { menu.addItem(item(L10n.text("Demo"), enabled: false)) }
         if let status { menu.addItem(item(status, enabled: false)) }
-        if fatalError != nil { menu.addItem(item("Не удалось открыть профили", enabled: false)) }
+        if fatalError != nil { menu.addItem(item(L10n.text("Could not open profiles"), enabled: false)) }
         if store.needsRecovery || store.needsPreparation {
-            menu.addItem(item("Подготовить / восстановить общий профиль…", action: #selector(recover)))
+            menu.addItem(item(L10n.text("Prepare / recover shared profile…"), action: #selector(recover)))
         } else if fatalError == nil, let state {
             for profile in state.profiles {
                 let row = item(profile.name, action: #selector(selectProfile(_:)), enabled: state.pending == nil || profile.id == state.pending?.id)
@@ -117,13 +117,13 @@ import SwitcherCore
             }
             menu.addItem(.separator())
             if let pending = state.pending {
-                menu.addItem(item("Войдите в новый аккаунт в Claude", enabled: false))
-                menu.addItem(item("Готово, я вошёл", action: #selector(finishAdding), enabled: state.activeID == pending.id))
-                menu.addItem(item("Отменить добавление", action: #selector(cancelAdding)))
+                menu.addItem(item(L10n.text("Sign into the new account in Claude"), enabled: false))
+                menu.addItem(item(L10n.text("Done, signed in"), action: #selector(finishAdding), enabled: state.activeID == pending.id))
+                menu.addItem(item(L10n.text("Cancel adding account"), action: #selector(cancelAdding)))
             } else {
-                menu.addItem(item("Добавить аккаунт…", action: #selector(addAccount)))
+                menu.addItem(item(L10n.text("Add account…"), action: #selector(addAccount)))
             }
-            menu.addItem(item(usage.refreshing ? "Обновление…" : "Обновить лимиты", action: #selector(refreshUsage), enabled: !usage.refreshing))
+            menu.addItem(item(usage.refreshing ? L10n.text("Refreshing…") : L10n.text("Refresh usage"), action: #selector(refreshUsage), enabled: !usage.refreshing))
         }
         if let state, state.pending == nil, let trigger {
             let submenu = NSMenu(); submenu.autoenablesItems = false
@@ -131,27 +131,45 @@ import SwitcherCore
                 let action = item(profile.name, action: #selector(triggerAccount(_:)))
                 action.representedObject = profile.id.uuidString; submenu.addItem(action)
                 if let record = trigger.journal.records[profile.id] {
-                    let status = item(record.message, enabled: false); status.indentationLevel = 1; submenu.addItem(status)
+                    let status = item(record.displayMessage, enabled: false); status.indentationLevel = 1; submenu.addItem(status)
                 }
             }
             submenu.addItem(.separator())
-            submenu.addItem(item("Все аккаунты", action: #selector(triggerAll)))
-            let entry = item(trigger.running ? "Запускаем окно лимитов…" : "Запустить окно лимитов")
+            submenu.addItem(item(L10n.text("All accounts"), action: #selector(triggerAll)))
+            let entry = item(trigger.running ? L10n.text("Starting usage window…") : L10n.text("Start usage window"))
             entry.submenu = submenu; menu.addItem(entry)
         }
         menu.addItem(.separator())
         let settings = NSMenu(); settings.autoenablesItems = false
-        settings.addItem(item("Автозапуск окон…", action: #selector(showTriggerSettings), enabled: trigger != nil && state?.pending == nil))
-        if let triggerError { settings.addItem(item(triggerError, enabled: false)) }
-        settings.addItem(item("Переименовать текущий…", action: #selector(renameAccount), enabled: state?.pending == nil))
-        let login = item("Запускать при входе в macOS", action: #selector(toggleLogin), enabled: !demo)
+        let languages = NSMenu(); languages.autoenablesItems = false
+        for language in AppLanguage.allCases {
+            let choice = item(language.nativeName, action: #selector(selectLanguage(_:)))
+            choice.representedObject = language.rawValue
+            choice.state = L10n.preference == language ? .on : .off
+            languages.addItem(choice)
+        }
+        let languageItem = item(L10n.text("Language")); languageItem.submenu = languages
+        settings.addItem(languageItem)
+        settings.addItem(.separator())
+        settings.addItem(item(L10n.text("Automatic window starts…"), action: #selector(showTriggerSettings), enabled: trigger != nil && state?.pending == nil))
+        if let triggerError { settings.addItem(item(L10n.message(triggerError), enabled: false)) }
+        settings.addItem(item(L10n.text("Rename current account…"), action: #selector(renameAccount), enabled: state?.pending == nil))
+        let login = item(L10n.text("Launch at login"), action: #selector(toggleLogin), enabled: !demo)
         login.state = SMAppService.mainApp.status == .enabled ? .on : .off
         settings.addItem(login)
-        settings.addItem(item("Общие настройки и локальные чаты", enabled: false))
+        settings.addItem(item(L10n.text("Shared settings and local chats"), enabled: false))
         settings.addItem(.separator())
-        settings.addItem(item("Выйти из Claudeway", action: #selector(quit)))
-        let settingsItem = item("Настройки"); settingsItem.submenu = settings; menu.addItem(settingsItem)
+        settings.addItem(item(L10n.text("Quit Claudeway"), action: #selector(quit)))
+        let settingsItem = item(L10n.text("Settings")); settingsItem.submenu = settings; menu.addItem(settingsItem)
         statusItem.menu = menu
+    }
+
+    @objc private func selectLanguage(_ sender: NSMenuItem) {
+        guard let code = sender.representedObject as? String, let language = AppLanguage(rawValue: code) else { return }
+        L10n.select(language)
+        triggerWindow?.relocalize()
+        if let trigger { triggerWindow?.update(trigger.journal) }
+        refresh()
     }
 
     func menuWillOpen(_ menu: NSMenu) {
@@ -202,7 +220,7 @@ import SwitcherCore
         let samples = Array(pendingTriggerSamples.values)
         pendingTriggerSamples.removeAll()
         do { try trigger.observe(samples, profiles: state.profiles) }
-        catch { triggerError = "Не удалось сохранить журнал запуска"; refresh(); return }
+        catch { triggerError = L10n.text("Could not save the window-start journal"); refresh(); return }
         let ids = trigger.automaticTargets(settings: triggerSettings, profiles: state.profiles, samples: samples)
         if !ids.isEmpty { startTrigger(ids, automatic: true); return }
         let verify = trigger.verificationTargets().filter { id in state.profiles.contains { $0.id == id } }
@@ -215,7 +233,7 @@ import SwitcherCore
         Task { @MainActor in
             do { try await trigger.run(profiles: state.profiles, ids: ids, automatic: automatic, verifyOnly: verifyOnly, allowPrompt: !automatic && !verifyOnly) }
             catch {
-                triggerError = "Не удалось сохранить журнал запуска"
+                triggerError = L10n.text("Could not save the window-start journal")
                 if !automatic && !verifyOnly { showError(error) }
             }
             busy = false; usage.reloadPolling(); refresh()
@@ -243,12 +261,12 @@ import SwitcherCore
     }
 
     private func selectProfile(id: UUID) {
-        run("Переключение…") { try await self.coordinator.select(id) }
+        run(L10n.text("Switching…")) { try await self.coordinator.select(id) }
     }
 
     @objc private func addAccount() {
-        guard !busy, let name = askName(title: "Добавить аккаунт", value: "", message: "Введите название, например «Личный» или «Рабочий». Claude перезапустится на экран входа с общими настройками; войдите в нужный аккаунт и нажмите «Готово, я вошёл» в меню переключателя.") else { return }
-        run("Добавление аккаунта…") {
+        guard !busy, let name = askName(title: L10n.text("Add account"), value: "", message: L10n.text("Enter a name, such as Personal or Work. Claude will restart at the sign-in screen with shared settings. Sign into the account, then choose “Done, signed in” in the menu.")) else { return }
+        run(L10n.text("Adding account…")) {
             let next = try self.store.add(name)
             self.state = next
             if let id = next.pending?.id { try await self.coordinator.select(id) }
@@ -257,12 +275,12 @@ import SwitcherCore
 
     @objc private func finishAdding() {
         guard !busy else { return }
-        run("Сохранение входа…") { try await self.coordinator.finishAdding() }
+        run(L10n.text("Saving login…")) { try await self.coordinator.finishAdding() }
     }
 
     @objc private func cancelAdding() {
         guard let pending = state?.pending else { return }
-        run("Возврат к исходному аккаунту…") {
+        run(L10n.text("Returning to the original account…")) {
             try await self.coordinator.select(pending.previousID)
             self.state = try self.store.cancelAdding()
         }
@@ -270,7 +288,7 @@ import SwitcherCore
 
     @objc private func renameAccount() {
         guard !busy, let state, let current = state.profiles.first(where: { $0.id == state.activeID }),
-              let name = askName(title: "Переименовать профиль", value: current.name, message: "Это название отображается только в Claudeway.") else { return }
+              let name = askName(title: L10n.text("Rename profile"), value: current.name, message: L10n.text("This name is only displayed in Claudeway.")) else { return }
         do { self.state = try store.rename(current.id, to: name); refresh() } catch { showError(error) }
     }
 
@@ -279,18 +297,18 @@ import SwitcherCore
         let alert = NSAlert()
         alert.messageText = title
         alert.informativeText = message
-        alert.addButton(withTitle: "Сохранить")
-        alert.addButton(withTitle: "Отмена")
+        alert.addButton(withTitle: L10n.text("Save"))
+        alert.addButton(withTitle: L10n.text("Cancel"))
         let input = NSTextField(frame: NSRect(x: 0, y: 0, width: 330, height: 24))
         input.stringValue = value
-        input.placeholderString = "Название аккаунта"
+        input.placeholderString = L10n.text("Account name")
         alert.accessoryView = input
         alert.window.initialFirstResponder = input
         return alert.runModal() == .alertFirstButtonReturn ? input.stringValue : nil
     }
 
     @objc private func recover() {
-        run("Восстановление…") { try await self.coordinator.recover() }
+        run(L10n.text("Recovering…")) { try await self.coordinator.recover() }
     }
 
     @objc private func toggleLogin() {
@@ -317,7 +335,7 @@ import SwitcherCore
         alert.alertStyle = .warning
         alert.messageText = "Claudeway"
         alert.informativeText = error.localizedDescription
-        alert.addButton(withTitle: "Понятно")
+        alert.addButton(withTitle: L10n.text("OK"))
         alert.runModal()
     }
 

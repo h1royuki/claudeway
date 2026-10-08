@@ -60,7 +60,7 @@ enum TriggerProcess {
                             "--tools", "", "--strict-mcp-config", "--mcp-config", "{\"mcpServers\":{}}",
                             "--setting-sources", "", "--settings", "{\"disableAllHooks\":true}",
                             "--no-session-persistence", "--no-chrome", "--disable-slash-commands",
-                            "--debug-file", "/dev/null", "--max-turns", "1", "--output-format", "json", "Ответь только OK"]
+                            "--debug-file", "/dev/null", "--max-turns", "1", "--output-format", "json", "Reply only OK"]
 
     static func send(token: String, root: URL) async throws -> TriggerSendResult {
         let executable = try await Task.detached(priority: .utility) { try TriggerProcess.executable() }.value
@@ -82,7 +82,7 @@ enum TriggerProcess {
         // Use a closed set of public labels; neither raw output nor exception text is persisted.
         let description = ((object["result"] as? String) ?? "").lowercased()
         if description.contains("oauth") || description.contains("authentication") || description.contains("login") || description.contains("401") {
-            return .rejected("Откройте аккаунт в Claude")
+            return .rejected(L10n.text("Open the account in Claude"))
         }
         if description.contains("limit") || description.contains("429") { return .rateLimited }
         return .uncertain

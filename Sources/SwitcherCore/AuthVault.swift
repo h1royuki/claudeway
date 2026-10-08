@@ -9,19 +9,19 @@ enum Disk {
         if !exists(url) { try fm.createDirectory(at: url, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700]) }
         guard try fm.attributesOfItem(atPath: url.path)[.type] as? FileAttributeType == .typeDirectory,
               url.standardizedFileURL == url.resolvingSymlinksInPath().standardizedFileURL else {
-            throw StoreError.message("Небезопасный каталог: \(url.lastPathComponent)")
+            throw StoreError.message(L10n.text("Unsafe directory: %@", url.lastPathComponent))
         }
     }
     static func read(_ url: URL) throws -> Data {
         guard try fm.attributesOfItem(atPath: url.path)[.type] as? FileAttributeType == .typeRegular,
               url.standardizedFileURL == url.resolvingSymlinksInPath().standardizedFileURL else {
-            throw StoreError.message("Ожидался обычный файл: \(url.lastPathComponent)")
+            throw StoreError.message(L10n.text("Expected a regular file: %@", url.lastPathComponent))
         }
         return try Data(contentsOf: url)
     }
     static func object(_ url: URL) throws -> [String: Any] {
         guard let result = try JSONSerialization.jsonObject(with: read(url)) as? [String: Any] else {
-            throw StoreError.message("Неверный формат \(url.lastPathComponent).")
+            throw StoreError.message(L10n.text("Invalid format: %@.", url.lastPathComponent))
         }
         return result
     }
@@ -29,18 +29,18 @@ enum Disk {
         try directory(url.deletingLastPathComponent())
         let temp = url.deletingLastPathComponent().appendingPathComponent(".write-\(UUID().uuidString)")
         let fd = open(temp.path, O_CREAT | O_EXCL | O_WRONLY | O_NOFOLLOW, 0o600)
-        guard fd >= 0 else { throw StoreError.message("Не удалось создать файл состояния.") }
+        guard fd >= 0 else { throw StoreError.message(L10n.text("Could not create the state file.")) }
         defer { close(fd); try? fm.removeItem(at: temp) }
         try data.withUnsafeBytes { bytes in
             var offset = 0
             while offset < bytes.count {
                 let n = Darwin.write(fd, bytes.baseAddress!.advanced(by: offset), bytes.count - offset)
                 if n < 0 && errno == EINTR { continue }
-                guard n > 0 else { throw StoreError.message("Не удалось записать файл состояния.") }
+                guard n > 0 else { throw StoreError.message(L10n.text("Could not write the state file.")) }
                 offset += n
             }
         }
-        guard fsync(fd) == 0, Darwin.rename(temp.path, url.path) == 0 else { throw StoreError.message("Не удалось сохранить файл состояния.") }
+        guard fsync(fd) == 0, Darwin.rename(temp.path, url.path) == 0 else { throw StoreError.message(L10n.text("Could not save the state file.")) }
         sync(url.deletingLastPathComponent())
     }
     static func write<T: Encodable>(_ value: T, _ url: URL) throws {
@@ -61,26 +61,26 @@ enum Disk {
             sync(url)
         } else if kind == .typeRegular {
             let fd = open(url.path, O_RDONLY | O_NOFOLLOW)
-            guard fd >= 0 else { throw StoreError.message("Не удалось синхронизировать сохранённый вход.") }
+            guard fd >= 0 else { throw StoreError.message(L10n.text("Could not sync the saved login.")) }
             defer { close(fd) }
-            guard fsync(fd) == 0 else { throw StoreError.message("Не удалось синхронизировать сохранённый вход.") }
-        } else { throw StoreError.message("Специальный файл в состоянии входа.") }
+            guard fsync(fd) == 0 else { throw StoreError.message(L10n.text("Could not sync the saved login.")) }
+        } else { throw StoreError.message(L10n.text("Special file found in login state.")) }
     }
     static func move(_ from: URL, _ to: URL) throws {
-        guard !exists(to) else { throw StoreError.message("Каталог назначения уже существует.") }
+        guard !exists(to) else { throw StoreError.message(L10n.text("The destination directory already exists.")) }
         try directory(to.deletingLastPathComponent())
-        guard Darwin.rename(from.path, to.path) == 0 else { throw StoreError.message("Не удалось переместить \(from.lastPathComponent).") }
+        guard Darwin.rename(from.path, to.path) == 0 else { throw StoreError.message(L10n.text("Could not move %@.", from.lastPathComponent)) }
         sync(from.deletingLastPathComponent()); sync(to.deletingLastPathComponent())
     }
     static func clone(_ from: URL, _ to: URL) throws {
-        guard !exists(to) else { throw StoreError.message("Резервная копия уже существует.") }
+        guard !exists(to) else { throw StoreError.message(L10n.text("A backup already exists.")) }
         try directory(to.deletingLastPathComponent())
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/bin/cp")
         task.arguments = ["-cRp", from.path, to.path]
         task.standardOutput = FileHandle.nullDevice; task.standardError = FileHandle.nullDevice
         try task.run(); task.waitUntilExit()
-        guard task.terminationStatus == 0 else { throw StoreError.message("Не удалось создать APFS-копию. Исходные данные сохранены.") }
+        guard task.terminationStatus == 0 else { throw StoreError.message(L10n.text("Could not create an APFS copy. Original data is preserved.")) }
         sync(to.deletingLastPathComponent())
     }
     static func mergeMissing(_ preferred: [String: Any], _ other: [String: Any]) -> [String: Any] {
@@ -133,7 +133,7 @@ final class AuthVault {
         }
         let account = (fields["lastKnownAccountUuid"] as? String).flatMap(UUID.init(uuidString:))
         let hasToken = Self.keys.prefix(2).contains { !(fields[$0] as? String ?? "").isEmpty }
-        if requireLogin && (account == nil || !hasToken) { throw StoreError.message("Войдите в Claude, затем нажмите «Готово, я вошёл».") }
+        if requireLogin && (account == nil || !hasToken) { throw StoreError.message(L10n.text("Sign into Claude, then choose “Done, signed in”.")) }
         let reference = AuthReference(generation: UUID(), accountID: account)
         let output = url(reference)
         try Disk.directory(output)
@@ -165,16 +165,16 @@ final class AuthVault {
         guard manifest.version == 1, manifest.reference == reference,
               Set(manifest.parts).count == manifest.parts.count,
               Set(manifest.parts).isSubset(of: Set(Self.parts + [Self.transient])) else {
-            throw StoreError.message("Некорректная сохранённая авторизация.")
+            throw StoreError.message(L10n.text("Invalid saved authentication."))
         }
         let fields = try Disk.object(folder.appendingPathComponent("auth-fields.json"))
         guard Set(fields.keys).isSubset(of: Set(Self.keys)),
               fields.values.allSatisfy({ $0 is String || $0 is NSNull }),
               (fields["lastKnownAccountUuid"] as? String).flatMap(UUID.init(uuidString:)) == reference.accountID else {
-            throw StoreError.message("Некорректные поля авторизации.")
+            throw StoreError.message(L10n.text("Invalid authentication fields."))
         }
-        for name in manifest.parts { guard Disk.exists(folder.appendingPathComponent(name)) else { throw StoreError.message("Сохранённое состояние входа неполное.") } }
-        guard try fileHashes(folder) == manifest.hashes else { throw StoreError.message("Сохранённое состояние входа повреждено. Переключение отменено.") }
+        for name in manifest.parts { guard Disk.exists(folder.appendingPathComponent(name)) else { throw StoreError.message(L10n.text("Saved login state is incomplete.")) } }
+        guard try fileHashes(folder) == manifest.hashes else { throw StoreError.message(L10n.text("Saved login state is damaged. Switching cancelled.")) }
     }
 
     func apply(_ reference: AuthReference, to live: URL, restoreTransient: Bool = false,
@@ -210,7 +210,7 @@ final class AuthVault {
     private func validateTree(_ root: URL) throws {
         let type = try Disk.fm.attributesOfItem(atPath: root.path)[.type] as? FileAttributeType
         guard type == .typeDirectory || type == .typeRegular,
-              root.standardizedFileURL == root.resolvingSymlinksInPath().standardizedFileURL else { throw StoreError.message("Ссылка или специальный файл в состоянии входа.") }
+              root.standardizedFileURL == root.resolvingSymlinksInPath().standardizedFileURL else { throw StoreError.message(L10n.text("Link or special file found in login state.")) }
         if type == .typeDirectory {
             for child in try Disk.fm.contentsOfDirectory(at: root, includingPropertiesForKeys: nil) { try validateTree(child) }
         }
@@ -229,7 +229,7 @@ final class AuthVault {
                     var hash = SHA256()
                     while let data = try handle.read(upToCount: 1_048_576), !data.isEmpty { hash.update(data: data) }
                     result[relative] = hash.finalize().map { String(format: "%02x", $0) }.joined()
-                } else { throw StoreError.message("Специальный файл в сохранённой авторизации.") }
+                } else { throw StoreError.message(L10n.text("Special file found in saved authentication.")) }
             }
         }
         try visit(folder, prefix: "")

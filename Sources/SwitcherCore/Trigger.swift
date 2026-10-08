@@ -26,14 +26,14 @@ public enum TriggerFailure: Error, LocalizedError {
     case settings, missingCLI, incompatibleCLI, unknownWindow, exhausted, launch, storage, managed
     public var errorDescription: String? {
         switch self {
-        case .managed: return "Фоновый запуск недоступен с управляемыми настройками Claude Code"
-        case .settings: return "Не удалось прочитать настройки запуска"
-        case .missingCLI: return "Установите Claude Code"
-        case .incompatibleCLI: return "Обновите Claude Code для фонового запуска"
-        case .unknownWindow: return "Состояние пятичасового окна неизвестно"
-        case .exhausted: return "Лимит исчерпан — дождитесь сброса"
-        case .launch: return "Не удалось запустить Claude Code"
-        case .storage: return "Не удалось сохранить журнал запуска"
+        case .managed: return L10n.text("Background requests unavailable with managed Claude Code settings")
+        case .settings: return L10n.text("Could not read window-start settings")
+        case .missingCLI: return L10n.text("Install Claude Code")
+        case .incompatibleCLI: return L10n.text("Update Claude Code for background requests")
+        case .unknownWindow: return L10n.text("Five-hour window state unknown")
+        case .exhausted: return L10n.text("Limit reached — wait for reset")
+        case .launch: return L10n.text("Could not launch Claude Code")
+        case .storage: return L10n.text("Could not save the window-start journal")
         }
     }
 }
@@ -67,6 +67,7 @@ public struct TriggerRecord: Codable {
     public var date: Date
     public var resetAt: Date?
     public var retryAt: Date?
+    public var displayMessage: String { L10n.message(message) }
     public var needsVerification: Bool { [.sending, .awaiting, .uncertain].contains(phase) }
 }
 public struct TriggerJournal: Codable {
@@ -118,7 +119,7 @@ public struct TriggerJournal: Codable {
                   let previous = journal.records[profile.id], sample.observedAt >= previous.date,
                   let reset = sample.windows.first(where: { $0.key == "five_hour" })?.resetsAt else { continue }
             if previous.needsVerification {
-                try record(profile.id, .confirmed, "Отсчёт запущен", resetAt: reset)
+                try record(profile.id, .confirmed, L10n.text("Usage window started"), resetAt: reset)
             } else if [.confirmed, .skipped].contains(previous.phase), previous.resetAt != reset {
                 journal.records[profile.id]?.resetAt = reset
                 try persist()
@@ -138,7 +139,7 @@ public struct TriggerJournal: Codable {
         // Keep the original send date so reconciliation has a bounded lifetime.
         let original = journal.records[id]
         let date = (phase == .awaiting || phase == .uncertain) && original?.needsVerification == true ? original!.date : now()
-        journal.records[id] = TriggerRecord(phase: phase, message: message, date: date, resetAt: resetAt, retryAt: retry)
+        journal.records[id] = TriggerRecord(phase: phase, message: L10n.canonicalMessage(message), date: date, resetAt: resetAt, retryAt: retry)
         try persist()
     }
     private func saveUsage(_ value: AccountUsage) {
@@ -158,50 +159,50 @@ public struct TriggerJournal: Codable {
             if let retry = previous?.retryAt, retry > now() { continue }
             var polling = UsagePolling.load(at: root.appendingPathComponent("usage-polling.json"))
             if let until = polling.blockedDate(id), until > now() {
-                if !reconcile { try record(id, .waiting, "Claude просит подождать", retry: until) }
+                if !reconcile { try record(id, .waiting, L10n.text("Claude asks you to wait"), retry: until) }
                 continue
             }
             do {
                 if reconcile {
                     let sample = try await backend.usage(profile); saveUsage(sample)
                     if TriggerWindowState.read(sample, now: now()) == .active {
-                        try record(id, .confirmed, "Отсчёт запущен", resetAt: sample.windows.first(where: { $0.key == "five_hour" })?.resetsAt)
+                        try record(id, .confirmed, L10n.text("Usage window started"), resetAt: sample.windows.first(where: { $0.key == "five_hour" })?.resetsAt)
                     } else {
-                        try record(id, .uncertain, "Запрос мог выполниться — отсчёт не подтверждён", retry: now().addingTimeInterval(300))
+                        try record(id, .uncertain, L10n.text("Request may have completed — window not confirmed"), retry: now().addingTimeInterval(300))
                     }
                     continue
                 }
-                try record(id, .checking, "Проверяем лимиты…")
+                try record(id, .checking, L10n.text("Checking usage…"))
                 polling.started(id, now: now()); polling.save(at: root.appendingPathComponent("usage-polling.json"))
                 let prepared = try await backend.prepare(profile, allowPrompt: allowPrompt)
                 saveUsage(prepared.usage)
                 switch TriggerWindowState.read(prepared.usage, now: now()) {
                 case .active:
-                    try record(id, .skipped, "Отсчёт уже идёт", resetAt: prepared.usage.windows.first(where: { $0.key == "five_hour" })?.resetsAt); continue
+                    try record(id, .skipped, L10n.text("Usage window already active"), resetAt: prepared.usage.windows.first(where: { $0.key == "five_hour" })?.resetsAt); continue
                 case .unknown: throw TriggerFailure.unknownWindow
                 case .idle: break
                 }
                 if let reset = previous?.resetAt, reset > now() {
-                    try record(id, .skipped, "Ждём подтверждённого времени сброса", resetAt: reset); continue
+                    try record(id, .skipped, L10n.text("Waiting for a confirmed reset time"), resetAt: reset); continue
                 }
                 if prepared.usage.windows.contains(where: { $0.key != "five_hour" && $0.usedPercent >= 100 && ($0.resetsAt == nil || $0.resetsAt! > now()) }) { throw TriggerFailure.exhausted }
                 // This write MUST succeed before launching any process that could send.
-                try record(id, .sending, "Отправляем короткий запрос…")
+                try record(id, .sending, L10n.text("Sending a short request…"))
                 let outcome = try await backend.send(prepared)
                 switch outcome {
                 case .completed:
-                    try record(id, .awaiting, "Запрос выполнен, ждём обновления лимитов")
+                    try record(id, .awaiting, L10n.text("Request completed, waiting for usage update"))
                 case .uncertain:
-                    try record(id, .uncertain, "Запрос мог выполниться — проверяем лимиты")
+                    try record(id, .uncertain, L10n.text("Request may have completed — checking usage"))
                 case .rateLimited:
                     polling.rateLimited(id, delay: 900, now: now()); polling.save(at: root.appendingPathComponent("usage-polling.json"))
-                    try record(id, .failed, "Claude просит подождать", retry: now().addingTimeInterval(900)); continue
+                    try record(id, .failed, L10n.text("Claude asks you to wait"), retry: now().addingTimeInterval(900)); continue
                 case .rejected(let message):
                     try record(id, .failed, message, retry: now().addingTimeInterval(300)); continue
                 }
                 let sample = try await backend.usage(profile); saveUsage(sample)
                 if TriggerWindowState.read(sample, now: now()) == .active {
-                    try record(id, .confirmed, "Отсчёт запущен", resetAt: sample.windows.first(where: { $0.key == "five_hour" })?.resetsAt)
+                    try record(id, .confirmed, L10n.text("Usage window started"), resetAt: sample.windows.first(where: { $0.key == "five_hour" })?.resetsAt)
                 } else {
                     let phase = journal.records[id]!.phase
                     try record(id, phase, journal.records[id]!.message, retry: now().addingTimeInterval(60))
@@ -209,7 +210,7 @@ public struct TriggerJournal: Codable {
             } catch {
                 // Storage failure must stop the whole queue, never silently drop a barrier.
                 if case TriggerFailure.storage = error { throw TriggerFailure.storage }
-                let message = (error as? UsageFailure)?.errorDescription ?? (error as? TriggerFailure)?.errorDescription ?? "Не удалось выполнить запуск"
+                let message = (error as? UsageFailure)?.errorDescription ?? (error as? TriggerFailure)?.errorDescription ?? L10n.text("Could not start the window")
                 var retry: Date? = nil
                 var network = false
                 if let failure = error as? UsageFailure {
@@ -220,7 +221,7 @@ public struct TriggerJournal: Codable {
                     }
                 }
                 if journal.records[id]?.needsVerification == true {
-                    try record(id, .uncertain, "Запрос мог выполниться · " + message, retry: retry ?? now().addingTimeInterval(300))
+                    try record(id, .uncertain, L10n.text("Request may have completed · ") + message, retry: retry ?? now().addingTimeInterval(300))
                 } else {
                     try record(id, network ? .waiting : .failed, message, retry: retry ?? now().addingTimeInterval(60))
                 }

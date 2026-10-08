@@ -1,11 +1,11 @@
 <p align="center"><img src="Assets/AppIcon.png" width="128" alt="Claudeway icon"></p>
 <h1 align="center">Claudeway</h1>
 <p align="center">Claude Desktop accounts and usage limits, one menu-bar app.</p>
-<p align="center"><a href="README.ru.md">Русский</a> · <a href="LICENSE">MIT</a> · <a href="CHANGELOG.md">Changelog</a></p>
+<p align="center"><a href="README.ru.md">Русский</a> · <a href="README.be.md">Беларуская</a> · <a href="LICENSE">MIT</a> · <a href="CHANGELOG.md">Changelog</a></p>
 
 A small native macOS utility for switching Claude Desktop accounts while keeping
 shared local settings and supported Code conversations. Built with Swift and
-AppKit, with no third-party Swift dependencies. The current UI is in Russian.
+AppKit, with no third-party Swift dependencies. Available in English, Russian and Belarusian.
 
 **Independent community software, not affiliated with Anthropic.** It uses
 undocumented Desktop storage and usage endpoints. Compatibility may change when
@@ -81,6 +81,12 @@ open -n "dist/Claudeway.app" --args --demo
 ```
 
 ## Limits and automatic window starts
+
+Choose **Settings → Language** to use **System**, **English**, **Русский** or
+**Беларуская**. System is the default and falls back to English if no preferred
+language is supported. Changes apply immediately and persist between launches;
+Claude does not restart. Account names stay as you entered them. Dates and durations
+follow the chosen language, using the Mac's current time zone.
 
 Usage refreshes about every five minutes. Manual refresh has a one-minute minimum;
 server backoff is respected. Missing or stale information is not treated as zero.

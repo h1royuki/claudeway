@@ -18,6 +18,7 @@ ARCHS='arm64 x86_64' ./build.sh
 APP='dist/Claudeway.app'
 lipo "$APP/Contents/MacOS/Claudeway" -verify_arch arm64 x86_64
 codesign --verify --deep --strict "$APP"
+"$APP/Contents/MacOS/Claudeway" --check-localizations
 python3 scripts/privacy_audit.py --artifacts "$APP"
 APP_ZIP="Claudeway-$VERSION-macos-universal.zip"
 SOURCE_ZIP="claudeway-$VERSION-source.zip"

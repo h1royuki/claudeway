@@ -2,7 +2,7 @@
 
 ## Project
 Native macOS menu-bar utility, Swift 5.9+, AppKit, macOS 13+. The interface is
-currently Russian. `SwitcherCore` contains storage, authentication, history and
+localized in English, Russian and Belarusian. `SwitcherCore` contains storage, authentication, history and
 usage logic; `Claudeway` contains the UI and process lifecycle. There are
 no third-party Swift dependencies. Keep the app small and the account rows compact.
 
@@ -42,6 +42,13 @@ no third-party Swift dependencies. Keep the app small and the account rows compa
 - Show transfer notifications only after successful completion and positive changes.
 
 ## Changes and validation
+Keep interface strings in `Sources/SwitcherCore/Resources/{en,ru,be}.lproj/Localizable.strings`.
+Use English source keys with `L10n.text`; translate all catalogs together and keep
+format placeholders identical. Never translate user-defined account names or server
+model names. Stored trigger messages use canonical English keys; legacy Russian
+labels translate only at display time without changing recovery/send-barrier state.
+Use a temporary UserDefaults suite in tests, never the user's real preferences.
+
 Use focused tests for changed behavior. Run the suite for core/storage changes
 and compile AppKit changes. Do not add tests that only duplicate a literal UI label.
 Keep release docs truthful about tests actually run; Intel cross-compilation is

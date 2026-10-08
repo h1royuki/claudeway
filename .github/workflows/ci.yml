@@ -34,4 +34,5 @@ jobs:
       - name: Check packaged app
         run: |
           codesign --verify --deep --strict 'dist/Claudeway.app'
+          'dist/Claudeway.app/Contents/MacOS/Claudeway' --check-localizations
           python3 scripts/privacy_audit.py --artifacts 'dist/Claudeway.app'

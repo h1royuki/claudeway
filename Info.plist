@@ -3,12 +3,14 @@
 <plist version="1.0"><dict>
   <key>CFBundleName</key><string>Claudeway</string>
   <key>CFBundleDisplayName</key><string>Claudeway</string>
+  <key>CFBundleDevelopmentRegion</key><string>en</string>
+  <key>CFBundleLocalizations</key><array><string>en</string><string>ru</string><string>be</string></array>
   <key>CFBundleIdentifier</key><string>local.claude-switcher.macos</string>
   <key>CFBundleExecutable</key><string>Claudeway</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>2.6.0</string>
-  <key>CFBundleVersion</key><string>17</string>
+  <key>CFBundleShortVersionString</key><string>2.7.0</string>
+  <key>CFBundleVersion</key><string>18</string>
   <key>LSMinimumSystemVersion</key><string>13.0</string>
   <key>LSUIElement</key><true/>
   <key>NSHighResolutionCapable</key><true/>

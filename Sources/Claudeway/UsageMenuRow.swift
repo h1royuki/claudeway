@@ -66,7 +66,7 @@ import SwitcherCore
         for i in 0..<max(2, windows.count) {
             let window = i < windows.count ? windows[i] : nil
             let y = CGFloat(25 + i * 18)
-            let title = window?.key == "seven_day" ? "Неделя" : window?.title ?? (i == 0 ? "5 ч" : "Неделя")
+            let title = window?.displayTitle ?? (i == 0 ? L10n.text("5 h") : L10n.text("Week"))
             text(title, rect: NSRect(x: 14, y: y, width: 46, height: 16), font: .systemFont(ofSize: 11), color: secondary)
             let elapsed = window?.hasElapsed(at: now) ?? false
             let value = window.map { elapsed ? "—" : "\(Int($0.usedPercent.rounded()))%" } ?? "—"
@@ -86,19 +86,19 @@ import SwitcherCore
         }
     }
     private static func notice(usage: AccountUsage?, error: String?) -> String? {
-        if let error { return error }
-        guard let usage else { return "Нет данных о лимитах" }
-        if usage.source == "local" { return "Время сброса недоступно" }
-        if usage.isStale(at: Date()) { return "Данные \(UsageText.age(usage.observedAt)) · обновить" }
+        if let error { return L10n.message(error) }
+        guard let usage else { return L10n.text("No usage data") }
+        if usage.source == "local" { return L10n.text("Reset time unavailable") }
+        if usage.isStale(at: Date()) { return L10n.text("Data %@ · refresh", UsageText.age(usage.observedAt)) }
         return nil
     }
     private func accessibilityText() -> String {
-        var parts = [profile.name + (active ? ", активен" : ", переключиться")]
+        var parts = [profile.name + (active ? L10n.text(", active") : L10n.text(", switch account"))]
         for window in usage?.windows ?? [] {
-            parts.append("\(window.title): использовано \(Int(window.usedPercent.rounded())) процентов; сброс \(window.resetsAt?.description(with: Locale(identifier: "ru_RU")) ?? "неизвестен")")
+            parts.append(L10n.text("%@: %@ percent used; resets %@", window.displayTitle, String(Int(window.usedPercent.rounded())), UsageText.accessibleReset(window.resetsAt)))
         }
-        if let usage { parts.append("Обновлено \(UsageText.age(usage.observedAt))") }
-        if let error { parts.append(error) }
+        if let usage { parts.append(L10n.text("Updated %@", UsageText.age(usage.observedAt))) }
+        if let error { parts.append(L10n.message(error)) }
         return parts.joined(separator: ". ")
     }
 }

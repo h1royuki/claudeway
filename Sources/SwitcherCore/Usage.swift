@@ -11,6 +11,13 @@ public struct UsageWindow: Codable, Equatable {
         self.key = key; self.title = title; self.usedPercent = usedPercent; self.resetsAt = resetsAt; self.explicitlyInactive = explicitlyInactive
     }
     public func hasElapsed(at now: Date) -> Bool { resetsAt.map { $0 <= now } ?? false }
+    public var displayTitle: String {
+        switch key {
+        case "five_hour": return L10n.text("5 h")
+        case "seven_day": return L10n.text("Week")
+        default: return title // Model names supplied by the server are not UI strings.
+        }
+    }
 }
 
 public struct AccountUsage: Codable, Equatable {
@@ -47,9 +54,9 @@ public enum UsageParser {
     }
     /// Accept only explicit utilization/reset fields. Missing is never interpreted as zero.
     public static func windows(from data: Data) throws -> [UsageWindow] {
-        guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { throw StoreError.message("Неизвестный формат лимитов.") }
+        guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { throw StoreError.message(L10n.text("Unknown usage format.")) }
         var result: [UsageWindow] = []
-        let fields = [("five_hour", "5 ч"), ("seven_day", "Нед."), ("seven_day_sonnet", "Sonnet"), ("seven_day_opus", "Opus")]
+        let fields = [("five_hour", L10n.text("5 h")), ("seven_day", L10n.text("Wk")), ("seven_day_sonnet", "Sonnet"), ("seven_day_opus", "Opus")]
         for (key, title) in fields {
             if key == "five_hour", object[key] is NSNull {
                 result.append(UsageWindow(key: key, title: title, usedPercent: 0, resetsAt: nil, explicitlyInactive: true))
@@ -63,8 +70,8 @@ public enum UsageParser {
             for row in limits {
                 guard let kind = row["kind"] as? String, let value = percent(row["percent"]) else { continue }
                 let key: String, title: String
-                if kind == "session" { key = "five_hour"; title = "5 ч" }
-                else if kind == "weekly_all" { key = "seven_day"; title = "Нед." }
+                if kind == "session" { key = "five_hour"; title = L10n.text("5 h") }
+                else if kind == "weekly_all" { key = "seven_day"; title = L10n.text("Wk") }
                 else if kind == "weekly_scoped", let scope = row["scope"] as? [String: Any],
                         let model = scope["model"] as? [String: Any], let name = model["display_name"] as? String,
                         !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -76,7 +83,7 @@ public enum UsageParser {
                 else { result.append(window) }
             }
         }
-        guard !result.isEmpty else { throw StoreError.message("Лимиты недоступны для этого аккаунта.") }
+        guard !result.isEmpty else { throw StoreError.message(L10n.text("Usage limits are unavailable for this account.")) }
         return result
     }
 
@@ -90,7 +97,7 @@ public enum UsageParser {
         }
         guard let latest = rows.max(by: { ($0["t"] as? Double ?? 0) < ($1["t"] as? Double ?? 0) }),
               let timestamp = latest["t"] as? Double, let values = latest["u"] as? [String: Any] else { return nil }
-        let keys = [("fh", "five_hour", "5 ч"), ("sd", "seven_day", "Нед."), ("sn", "seven_day_sonnet", "Sonnet"), ("so", "seven_day_opus", "Opus")]
+        let keys = [("fh", "five_hour", L10n.text("5 h")), ("sd", "seven_day", L10n.text("Wk")), ("sn", "seven_day_sonnet", "Sonnet"), ("so", "seven_day_opus", "Opus")]
         let windows = keys.compactMap { short, key, title -> UsageWindow? in
             guard let used = percent(values[short]) else { return nil }
             return UsageWindow(key: key, title: title, usedPercent: used, resetsAt: nil)
@@ -102,25 +109,31 @@ public enum UsageParser {
 }
 
 public enum UsageText {
+    public static func accessibleReset(_ date: Date?) -> String {
+        guard let date else { return L10n.text("unknown") }
+        let formatter = DateFormatter(); formatter.locale = L10n.locale
+        formatter.dateStyle = .full; formatter.timeStyle = .short
+        return formatter.string(from: date)
+    }
     public static func countdown(to date: Date, now: Date = Date()) -> String {
         let minutes = max(1, Int(ceil(date.timeIntervalSince(now) / 60)))
-        if date <= now { return "ждём обновления" }
-        if minutes >= 1440 { return "\(minutes / 1440)д \((minutes % 1440) / 60)ч" }
-        if minutes >= 60 { return "\(minutes / 60)ч \(minutes % 60)м" }
-        return "\(minutes)м"
+        if date <= now { return L10n.text("awaiting update") }
+        if minutes >= 1440 { return L10n.text("%@d %@h", String(minutes / 1440), String((minutes % 1440) / 60)) }
+        if minutes >= 60 { return L10n.text("%@h %@m", String(minutes / 60), String(minutes % 60)) }
+        return L10n.text("%@m", String(minutes))
     }
     public static func reset(_ date: Date?, now: Date = Date()) -> String {
         guard let date else { return "—" }
-        if date <= now { return "обновить" }
-        let formatter = DateFormatter(); formatter.locale = Locale(identifier: "ru_RU")
+        if date <= now { return L10n.text("refresh") }
+        let formatter = DateFormatter(); formatter.locale = L10n.locale
         formatter.dateFormat = Calendar.current.isDate(date, inSameDayAs: now) ? "HH:mm" : "EE HH:mm"
         return formatter.string(from: date)
     }
     public static func age(_ date: Date, now: Date = Date()) -> String {
         let minutes = max(0, Int(now.timeIntervalSince(date) / 60))
-        if minutes < 1 { return "сейчас" }
-        if minutes < 60 { return "\(minutes)м назад" }
-        if minutes < 1440 { return "\(minutes / 60)ч назад" }
-        return "\(minutes / 1440)д назад"
+        if minutes < 1 { return L10n.text("now") }
+        if minutes < 60 { return L10n.text("%@m ago", String(minutes)) }
+        if minutes < 1440 { return L10n.text("%@h ago", String(minutes / 60)) }
+        return L10n.text("%@d ago", String(minutes / 1440))
     }
 }

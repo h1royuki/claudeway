@@ -1,4 +1,5 @@
 import Foundation
+import SwitcherCore
 
 // Standalone assertions so tests also run on Macs with Command Line Tools only.
 // XCTest is shipped with full Xcode and is not required to build this app.
@@ -31,6 +32,11 @@ func XCTAssertThrowsError<T>(_ action: @autoclosure () throws -> T, file: Static
 
 @main struct TestRunner {
     @MainActor static func main() async throws {
+        // Do not read or change the user's language preference during tests.
+        let suite = "ClaudewayTests-" + UUID().uuidString
+        let preferences = UserDefaults(suiteName: suite)!
+        defer { preferences.removePersistentDomain(forName: suite) }
+        L10n.select(.ru, defaults: preferences)
         let tests = ProfileStoreTests()
         let cases: [(String, () throws -> Void)] = [
             ("shared root inode, settings and artifacts survive round trip", tests.testRoundTripKeepsCommonRootAndSettings),
@@ -100,6 +106,7 @@ func XCTAssertThrowsError<T>(_ action: @autoclosure () throws -> T, file: Static
         try UsageTests().runAll()
         try await UsageClientTests().runAll()
         try await TriggerTests().runAll()
-        print("53 test groups passed (including 16 auth and 4 migration crash points).")
+        try LocalizationTests().runAll(defaults: preferences)
+        print("57 test groups passed (including 16 auth and 4 migration crash points).")
     }
 }

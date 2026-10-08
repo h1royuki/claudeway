@@ -7,13 +7,13 @@ public enum UsageFailure: Error, LocalizedError {
     case keychain, format, login, identity, network, unavailable, rateLimited(TimeInterval)
     public var errorDescription: String? {
         switch self {
-        case .keychain: return "Нужен доступ к связке ключей"
-        case .format: return "Формат входа изменился"
-        case .login: return "Откройте аккаунт в Claude"
-        case .identity: return "Аккаунт не совпал"
-        case .network: return "Нет связи с Claude"
-        case .unavailable: return "Лимиты недоступны"
-        case .rateLimited: return "Claude просит подождать"
+        case .keychain: return L10n.text("Keychain access required")
+        case .format: return L10n.text("Login format changed")
+        case .login: return L10n.text("Open the account in Claude")
+        case .identity: return L10n.text("Account mismatch")
+        case .network: return L10n.text("Cannot connect to Claude")
+        case .unavailable: return L10n.text("Usage limits unavailable")
+        case .rateLimited: return L10n.text("Claude asks you to wait")
         }
     }
 }

@@ -18,7 +18,7 @@ import Foundation
     public init(store: ProfileStore, lifecycle: ClaudeLifecycle) { self.store = store; self.lifecycle = lifecycle }
 
     public func prepare(settingsBaseID: UUID? = nil) async throws {
-        guard !isBusy else { throw StoreError.message("Операция уже выполняется.") }
+        guard !isBusy else { throw StoreError.message(L10n.text("An operation is already running.")) }
         isBusy = true; defer { isBusy = false }
         lastTransferReport = nil
         if !store.needsPreparation && !store.needsRecovery { _ = try store.load(); return }
@@ -38,7 +38,7 @@ import Foundation
     }
 
     public func select(_ id: UUID) async throws {
-        guard !isBusy else { throw StoreError.message("Переключение уже выполняется.") }
+        guard !isBusy else { throw StoreError.message(L10n.text("Account switching is already in progress.")) }
         isBusy = true; defer { isBusy = false }
         lastTransferReport = nil
         let previous = try store.load().activeID
@@ -56,13 +56,13 @@ import Foundation
                 if store.needsRecovery { try store.recover(requireStopped: lifecycle.requireStopped) }
                 if try store.load().activeID != previous { try store.switchProfile(to: previous, requireStopped: lifecycle.requireStopped) }
                 try await lifecycle.launch(openCode: false)
-            } catch { throw StoreError.message("\(cause)\nВосстановление не завершено: \(error.localizedDescription)") }
-            throw StoreError.message("\(cause)\nПредыдущий аккаунт восстановлен.")
+            } catch { throw StoreError.message(L10n.text("%@\nRecovery is incomplete: %@", cause, error.localizedDescription)) }
+            throw StoreError.message(L10n.text("%@\nThe previous account was restored.", cause))
         }
     }
 
     public func finishAdding() async throws {
-        guard !isBusy else { throw StoreError.message("Операция уже выполняется.") }
+        guard !isBusy else { throw StoreError.message(L10n.text("An operation is already running.")) }
         isBusy = true; defer { isBusy = false }
         lastTransferReport = nil
         try await lifecycle.stop()

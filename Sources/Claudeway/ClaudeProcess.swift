@@ -8,7 +8,7 @@ import SwitcherCore
 
     private func applicationURL() throws -> URL {
         guard let url = workspace.urlForApplication(withBundleIdentifier: Self.bundleID) else {
-            throw StoreError.message("Claude не найден. Установите приложение Claude в папку «Программы».")
+            throw StoreError.message(L10n.text("Claude was not found. Install Claude in Applications."))
         }
         return url
     }
@@ -31,7 +31,7 @@ import SwitcherCore
         let data = pipe.fileHandleForReading.readDataToEndOfFile()
         task.waitUntilExit()
         guard task.terminationStatus == 0 else {
-            throw StoreError.message("Не удалось проверить процессы Claude. Переключение отменено.")
+            throw StoreError.message(L10n.text("Could not check Claude processes. Switching cancelled."))
         }
         return String(decoding: data, as: UTF8.self).split(separator: "\n").compactMap { line in
             let parts = line.split(maxSplits: 2, omittingEmptySubsequences: true, whereSeparator: \.isWhitespace)
@@ -65,7 +65,7 @@ import SwitcherCore
         let deadline = ContinuousClock.now.advanced(by: .seconds(30))
         while !(try remaining()).isEmpty {
             guard ContinuousClock.now < deadline else {
-                throw StoreError.message("Claude или его фоновые задачи не завершились за 30 секунд. Остановите задачи и закройте Claude, затем повторите. Профиль не переключён.")
+                throw StoreError.message(L10n.text("Claude or its background tasks did not quit within 30 seconds. Stop the tasks, quit Claude and try again. The profile was not switched."))
             }
             try await Task.sleep(nanoseconds: 250_000_000)
         }
@@ -73,7 +73,7 @@ import SwitcherCore
 
     func requireStopped() throws {
         guard try remaining().isEmpty else {
-            throw StoreError.message("Claude снова запущен. Операция с данными остановлена; закройте Claude и нажмите «Восстановить».")
+            throw StoreError.message(L10n.text("Claude is running again. Data changes stopped; quit Claude and choose Recover."))
         }
     }
 
@@ -85,7 +85,7 @@ import SwitcherCore
             workspace.openApplication(at: url, configuration: config) { app, error in
                 if let error { continuation.resume(throwing: error) }
                 else if let app { continuation.resume(returning: app) }
-                else { continuation.resume(throwing: StoreError.message("macOS не подтвердила запуск Claude.")) }
+                else { continuation.resume(throwing: StoreError.message(L10n.text("macOS did not confirm that Claude launched."))) }
             }
         }
         if openCode {
@@ -97,7 +97,7 @@ import SwitcherCore
             }
         }
         try await Task.sleep(nanoseconds: 700_000_000)
-        guard !app.isTerminated else { throw StoreError.message("Claude завершился сразу после запуска.") }
+        guard !app.isTerminated else { throw StoreError.message(L10n.text("Claude quit immediately after launch.")) }
     }
 }
 
