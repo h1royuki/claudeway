@@ -29,3 +29,5 @@ usage-status.json
 usage-polling.json
 trigger-settings*.json
 *.jsonl
+
+chat-transfer-settings.json

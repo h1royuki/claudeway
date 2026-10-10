@@ -1,5 +1,31 @@
 # Changelog
 
+## 2.9.0 — 2026-10-10
+
+- Chat transfer settings: all projects, selected projects only, or completely disabled.
+- Searchable project list with folder paths, deduplicated local chat counts and saved selections.
+- Filters apply to new imports and metadata updates in both directions; existing chats are never removed.
+- Worktrees use their recorded origin folder. Unknown future projects require opt-in in selected mode.
+- Invalid settings fail closed; selections are stored atomically with private permissions.
+- English, Russian and Belarusian UI; synthetic tests for filtering, persistence and project boundaries.
+
+## 2.8.1 — 2026-10-08
+
+- Check Claude Safe Storage access at startup, independently of usage polling and network access.
+- Prompt once only when permission is needed; a refusal does not trigger repeated prompts.
+- Usage refreshes and CLI preparations are always noninteractive. Access can be retried
+  explicitly through the Keychain access menu action.
+- Synthetic permission-flow tests cover granted access, refusal, missing items and concurrent requests.
+
+## 2.8.0 — 2026-10-08
+
+- Dedicated Accounts window for adding, renaming, switching and removing accounts.
+- Rename inactive accounts without switching; drafts survive background refreshes.
+- Empty lists show an entry point to add the first account and stay empty after restart.
+- Removal preserves Desktop login, shared chats and recovery backups.
+- First-account sign-in and cancellation, plus recoverable switching after removing
+  the active account; all new UI translated into English, Russian and Belarusian.
+
 ## 2.7.0 — 2026-10-08
 
 - English, Russian and Belarusian interface, including errors, notifications,

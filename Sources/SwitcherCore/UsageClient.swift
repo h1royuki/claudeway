@@ -21,15 +21,19 @@ public enum UsageFailure: Error, LocalizedError {
 /// Read-only adapter for Electron's macOS v10 storage. Never writes credentials,
 /// rotates refresh tokens, changes ACLs, or queries another application's keychain item.
 enum ClaudeUsageCredentials {
+    private enum ReadFailure: Error { case status(OSStatus) }
     private static let keychainLock = NSLock()
-    static func key(allowPrompt: Bool) throws -> Data {
+    private static func password(allowPrompt: Bool) throws -> Data {
         // Electron uses a legacy login-keychain item; LAContext alone does not
         // suppress its ACL prompt. Serialize the process-wide legacy UI flag too.
         keychainLock.lock()
+        defer { keychainLock.unlock() }
         var previous: DarwinBoolean = true
-        SecKeychainGetUserInteractionAllowed(&previous)
-        SecKeychainSetUserInteractionAllowed(allowPrompt)
-        defer { SecKeychainSetUserInteractionAllowed(previous.boolValue); keychainLock.unlock() }
+        guard SecKeychainGetUserInteractionAllowed(&previous) == errSecSuccess,
+              SecKeychainSetUserInteractionAllowed(allowPrompt) == errSecSuccess else {
+            throw ReadFailure.status(errSecInteractionNotAllowed)
+        }
+        defer { SecKeychainSetUserInteractionAllowed(previous.boolValue) }
         let context = LAContext()
         context.interactionNotAllowed = !allowPrompt
         let query: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
@@ -37,8 +41,31 @@ enum ClaudeUsageCredentials {
             kSecMatchLimit as String: kSecMatchLimitOne, kSecReturnData as String: true,
             kSecUseAuthenticationContext as String: context]
         var item: CFTypeRef?
-        guard SecItemCopyMatching(query as CFDictionary, &item) == errSecSuccess,
-              var password = item as? Data, !password.isEmpty else { throw UsageFailure.keychain }
+        let status = SecItemCopyMatching(query as CFDictionary, &item)
+        guard status == errSecSuccess else { throw ReadFailure.status(status) }
+        guard let password = item as? Data, !password.isEmpty else { throw ReadFailure.status(errSecDecode) }
+        return password
+    }
+
+    static func access(allowPrompt: Bool) -> KeychainAccessState {
+        do {
+            var value = try password(allowPrompt: allowPrompt)
+            value.resetBytes(in: 0..<value.count)
+            return .granted
+        } catch ReadFailure.status(let status) {
+            switch status {
+            case errSecItemNotFound: return .missing
+            case errSecInteractionNotAllowed, errSecAuthFailed: return .needsPermission
+            case errSecUserCanceled: return .denied
+            default: return .unavailable
+            }
+        } catch { return .unavailable }
+    }
+
+    static func key() throws -> Data {
+        var password: Data
+        do { password = try self.password(allowPrompt: false) }
+        catch { throw UsageFailure.keychain }
         defer { password.resetBytes(in: 0..<password.count) }
         let salt = Array("saltysalt".utf8)
         var key = Data(count: 16)
@@ -107,8 +134,8 @@ final class UsageNoRedirect: NSObject, URLSessionTaskDelegate {
 
 public struct UsageClient {
     public init() {}
-    public func fetch(profile: Profile, activeID: UUID, root: URL, live: URL, allowKeychainPrompt: Bool = false) async throws -> AccountUsage {
-        let tokens = try await credentials(profile: profile, root: root, live: live, allowKeychainPrompt: allowKeychainPrompt)
+    public func fetch(profile: Profile, activeID: UUID?, root: URL, live: URL) async throws -> AccountUsage {
+        let tokens = try await credentials(profile: profile, root: root, live: live)
         try Task.checkCancellation()
         guard !tokens.isEmpty else { throw UsageFailure.login }
         let config = URLSessionConfiguration.ephemeral
@@ -120,7 +147,7 @@ public struct UsageClient {
         return try await verifiedUsage(tokens: tokens, profile: profile, session: session)
     }
 
-    func credentials(profile: Profile, root: URL, live: URL, allowKeychainPrompt: Bool, inferenceOnly: Bool = false) async throws -> [String] {
+    func credentials(profile: Profile, root: URL, live: URL, inferenceOnly: Bool = false) async throws -> [String] {
         guard let auth = profile.auth, let account = auth.accountID, let org = profile.organizationID else { throw UsageFailure.login }
         // All Keychain and filesystem work stays off the menu/main thread.
         return try await Task.detached(priority: .utility) {
@@ -135,14 +162,14 @@ public struct UsageClient {
             }
             let fields = try Disk.object(file)
             guard (fields["lastKnownAccountUuid"] as? String).flatMap(UUID.init(uuidString:)) == account else { throw UsageFailure.identity }
-            var key = try ClaudeUsageCredentials.key(allowPrompt: allowKeychainPrompt)
+            var key = try ClaudeUsageCredentials.key()
             defer { key.resetBytes(in: 0..<key.count) }
             return try ClaudeUsageCredentials.candidates(fields: fields, account: account, org: org, key: key, now: Date(), inferenceOnly: inferenceOnly)
         }.value
     }
 
-    public func prepareTrigger(profile: Profile, root: URL, live: URL, allowKeychainPrompt: Bool = false) async throws -> TriggerPreparation {
-        let tokens = try await credentials(profile: profile, root: root, live: live, allowKeychainPrompt: allowKeychainPrompt, inferenceOnly: true)
+    public func prepareTrigger(profile: Profile, root: URL, live: URL) async throws -> TriggerPreparation {
+        let tokens = try await credentials(profile: profile, root: root, live: live, inferenceOnly: true)
         guard !tokens.isEmpty else { throw UsageFailure.login }
         let config = URLSessionConfiguration.ephemeral
         config.urlCache = nil; config.httpCookieStorage = nil; config.httpShouldSetCookies = false

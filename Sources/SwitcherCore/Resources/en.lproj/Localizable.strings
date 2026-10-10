@@ -152,3 +152,58 @@
 "now" = "now";
 "refresh" = "refresh";
 "unknown" = "unknown";
+"No accounts yet" = "No accounts yet";
+"Open Accounts to add your first account…" = "Open Accounts to add your first account…";
+"Manage accounts…" = "Manage accounts…";
+"Finish adding an account…" = "Finish adding an account…";
+"Your current Claude login will be added. Sign into Claude if needed, then choose Done, signed in in this window." = "Your current Claude login will be added. Sign into Claude if needed, then choose Done, signed in in this window.";
+"Claude will open a fresh sign-in screen. Sign into the new account, then choose Done, signed in in this window." = "Claude will open a fresh sign-in screen. Sign into the new account, then choose Done, signed in in this window.";
+"Cancelling account addition…" = "Cancelling account addition…";
+"Remove “%@” from Claudeway?" = "Remove “%@” from Claudeway?";
+"This removes the account from the switcher. Your current Claude login, chats and backups stay on this Mac. You can add the account again later." = "This removes the account from the switcher. Your current Claude login, chats and backups stay on this Mac. You can add the account again later.";
+"Remove account" = "Remove account";
+"Remove account…" = "Remove account…";
+"Use this account" = "Use this account";
+"Add accounts, change their names, or remove them from Claudeway." = "Add accounts, change their names, or remove them from Claudeway.";
+"No accounts yet. Click Add account to get started." = "No accounts yet. Click Add account to get started.";
+"Accounts are unavailable. Finish recovery from the menu, then return here." = "Accounts are unavailable. Finish recovery from the menu, then return here.";
+"Sign into the account you want to save in Claude, then click Done, signed in. Cancelling keeps your current Claude login." = "Sign into the account you want to save in Claude, then click Done, signed in. Cancelling keeps your current Claude login.";
+"Sign into the new account in Claude, then click Done, signed in. Cancel returns to the previous account." = "Sign into the new account in Claude, then click Done, signed in. Cancel returns to the previous account.";
+"Finish sign-in" = "Finish sign-in";
+"Active" = "Active";
+"Checking Keychain access…" = "Checking Keychain access…";
+"Allow Keychain access…" = "Allow Keychain access…";
+"Keychain access…" = "Keychain access…";
+"Open Claude and sign in first" = "Open Claude and sign in first";
+
+"Chat transfer" = "Chat transfer";
+
+"Chat transfer…" = "Chat transfer…";
+
+"All projects" = "All projects";
+
+"Selected projects only" = "Selected projects only";
+
+"Transfer disabled" = "Transfer disabled";
+
+"Copy and update local Code chats when switching accounts. Excluded projects and existing copies stay untouched. Cloud chats and project files are not transferred." = "Copy and update local Code chats when switching accounts. Excluded projects and existing copies stay untouched. Cloud chats and project files are not transferred.";
+
+"Find a project" = "Find a project";
+
+"Select all" = "Select all";
+
+"Deselect all" = "Deselect all";
+
+"Projects appear here after local Code chats are created." = "Projects appear here after local Code chats are created.";
+
+"No matching projects" = "No matching projects";
+
+"Selected: %@ of %@" = "Selected: %@ of %@";
+
+"Chats: %@" = "Chats: %@";
+
+"New projects are included automatically." = "New projects are included automatically.";
+
+"New projects must be selected manually." = "New projects must be selected manually.";
+
+"Invalid chat transfer settings. Choose the projects again." = "Invalid chat transfer settings. Choose the projects again.";

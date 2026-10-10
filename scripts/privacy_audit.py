@@ -30,7 +30,7 @@ RULES = {
 }
 UUID = re.compile(rb'(?<![0-9a-f])[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}(?![0-9a-f])', re.I)
 FORBIDDEN = {'.DS_Store', '.env', 'profiles.json', 'usage-cache.json', 'usage-status.json',
-             'usage-polling.json', 'trigger-settings.json', 'auth-snapshots', 'migration-backups',
+             'usage-polling.json', 'chat-transfer-settings.json', 'trigger-settings.json', 'auth-snapshots', 'migration-backups',
              'chat-backups', 'trigger-runtime', 'Cookies', 'Local Storage', 'IndexedDB'}
 IGNORED = {'.git', '.build', '.swiftpm', 'dist', '__pycache__'}
 LIMIT = 256 * 1024 * 1024

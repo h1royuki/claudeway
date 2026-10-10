@@ -46,11 +46,17 @@ Current community builds are **ad-hoc signed, not notarized**. Downloaded builds
 may be blocked by macOS Gatekeeper; building from reviewed source is an alternative.
 No Apple Developer signing identity or notarization credentials are bundled.
 
-1. Your current Desktop login is saved as the first local profile.
-2. Use **Добавить аккаунт…** to add another account through Claude's normal sign-in UI.
-3. Select a profile to restart Desktop with that account.
-4. Allow Keychain access when explicitly requested for usage information.
-5. Enable **Автозапуск окон** only if you want automatic small requests that consume usage.
+1. Open **Manage accounts…** from the menu bar, then choose **Add account…**.
+2. For the first account, sign into Claude if needed and click **Done, signed in**
+   in the Accounts window. Adding more accounts opens a fresh Claude sign-in screen.
+3. Rename any selected account in the window's name field and click **Save**.
+   **Remove account…** forgets its entry; the current Claude login, chats and
+   recovery backups remain on your Mac. Removing the last entry leaves an empty list.
+4. Select an account in the menu or use **Use this account** to switch Desktop.
+5. Claudeway checks Keychain access at startup and asks once if permission is needed.
+   Choose **Always Allow** in the macOS prompt for persistent access. Refusing keeps
+   refreshes silent; retry explicitly with **Settings → Keychain access…**.
+6. Enable **Automatic window starts** only if you want small requests that consume usage.
 
 See [architecture and data boundaries](docs/architecture.md) before relying on
 shared history. Existing installations keep their profiles and settings: the
@@ -91,8 +97,8 @@ follow the chosen language, using the Mac's current time zone.
 Usage refreshes about every five minutes. Manual refresh has a one-minute minimum;
 server backoff is respected. Missing or stale information is not treated as zero.
 
-**Запустить окно лимитов** sends one small Sonnet request only when a fresh server
-response confirms an idle five-hour window. **Автозапуск окон** does this for selected
+**Start usage window** sends one small Sonnet request only when a fresh server
+response confirms an idle five-hour window. **Automatic window starts** does this for selected
 accounts after successful usage refreshes. There is no time-of-day schedule or
 daily cap. Both automation and launch at login are off on a fresh installation.
 
@@ -127,3 +133,16 @@ architectures. A version tag builds and audits universal artifacts, then creates
 
 [MIT](LICENSE), including the original icon artwork. Claude and Claude Code are
 trademarks of Anthropic; no Anthropic application binaries are distributed here.
+
+### Choosing projects for chat transfer
+
+Open **Settings → Chat transfer…** to include all projects, select individual
+project folders, or turn transfer off. The selection applies to local Code chats
+between all registered accounts on the next account switch, including updates to
+existing copies. It does not delete chats already present in an account.
+
+The default keeps the existing all-project behavior. In selected mode, new projects
+are excluded until checked. Worktrees share the recorded origin project when
+available. This does not copy project files, cloud conversations, permissions or
+account connections. Settings are stored locally in `chat-transfer-settings.json`;
+project paths are private runtime data and must not be published.

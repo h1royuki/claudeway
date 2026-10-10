@@ -27,6 +27,8 @@ no third-party Swift dependencies. Keep the app small and the account rows compa
 ## Invariants
 - Close Claude gracefully before touching live auth/history files; stop after
   30 seconds without force-killing Desktop or its tasks.
+- Account removal forgets the list entry only; preserve Desktop login, chats and
+  recovery snapshots. Empty lists and untracked active logins must survive restart.
 - Keep the shared Desktop root stable. Switch only validated encrypted auth state;
   preserve original permissions, the exclusive store lock, recovery and rollback.
 - Never log tokens or place them in argv/files. Keychain reads and decryption stay
@@ -39,6 +41,8 @@ no third-party Swift dependencies. Keep the app small and the account rows compa
   must not be treated as an idle window. Keep retry/backoff and duplicate protection.
 - Share only whitelisted local chat fields. Preserve target grants. Deleted, remote,
   malformed and conflicting records remain excluded. Never edit transcript contents.
+- Apply the saved project filter to imports and updates alike. Never delete existing
+  chats when a project is excluded; invalid transfer settings must fail closed.
 - Show transfer notifications only after successful completion and positive changes.
 
 ## Changes and validation

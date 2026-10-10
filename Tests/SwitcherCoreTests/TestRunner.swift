@@ -39,6 +39,7 @@ func XCTAssertThrowsError<T>(_ action: @autoclosure () throws -> T, file: Static
         L10n.select(.ru, defaults: preferences)
         let tests = ProfileStoreTests()
         let cases: [(String, () throws -> Void)] = [
+            ("stored project policy across account switches", tests.testStoredTransferPolicyUsedAcrossAccounts),
             ("shared root inode, settings and artifacts survive round trip", tests.testRoundTripKeepsCommonRootAndSettings),
             ("all 16 auth transaction crash points", tests.testEveryAuthCheckpointRecovers),
             ("refreshed credentials captured", tests.testRefreshedCredentialsAreCapturedBeforeLeaving),
@@ -94,6 +95,12 @@ func XCTAssertThrowsError<T>(_ action: @autoclosure () throws -> T, file: Static
             ("running process blocks import", transfer.testRunningProcessBlocksTransfer),
             ("repeat transfer is idempotent", transfer.testRepeatTransferIsIdempotent),
             ("shared root only includes registered accounts", transfer.testSharedRootIncludesOnlyRegisteredAccounts),
+            ("selected projects filter both imports and updates", transfer.testSelectedProjectsFilterImportsAndUpdates),
+            ("disabled and empty project selections preserve data", transfer.testDisabledAndEmptySelectionPreserveData),
+            ("worktree project origin and exact path matching", transfer.testProjectOriginAndExactMatching),
+            ("conflicting project identities cannot cross selection boundaries", transfer.testProjectIdentityConflictsAreSkipped),
+            ("project catalog deduplication and registered-account boundaries", transfer.testProjectCatalogDeduplicatesAndHonorsBoundaries),
+            ("transfer settings persistence and fail-closed validation", transfer.testTransferSettingsPersistAndFailClosed),
             ("partial transfer rollback", transfer.testInterruptedTransferRollsBackAppliedChanges)
         ]
         for (name, test) in transferCases {
@@ -107,6 +114,8 @@ func XCTAssertThrowsError<T>(_ action: @autoclosure () throws -> T, file: Static
         try await UsageClientTests().runAll()
         try await TriggerTests().runAll()
         try LocalizationTests().runAll(defaults: preferences)
-        print("57 test groups passed (including 16 auth and 4 migration crash points).")
+        try await AccountManagementTests().runAll()
+        await KeychainAccessTests().runAll()
+        print("76 test groups passed (including auth, detached-login, migration and Keychain permission handling).")
     }
 }

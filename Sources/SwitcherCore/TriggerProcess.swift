@@ -9,7 +9,7 @@ public struct DesktopTriggerBackend: TriggerBackend {
     public func prepare(_ profile: Profile, allowPrompt: Bool) async throws -> TriggerPreparation {
         // Validate availability before putting a send barrier into the journal.
         _ = try await Task.detached(priority: .utility) { try TriggerProcess.executable() }.value
-        return try await UsageClient().prepareTrigger(profile: profile, root: root, live: live, allowKeychainPrompt: allowPrompt)
+        return try await UsageClient().prepareTrigger(profile: profile, root: root, live: live)
     }
     public func send(_ preparation: TriggerPreparation) async throws -> TriggerSendResult {
         try await TriggerProcess.send(token: preparation.token, root: root)

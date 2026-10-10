@@ -152,3 +152,58 @@
 "now" = "цяпер";
 "refresh" = "абнавіць";
 "unknown" = "невядомы";
+"No accounts yet" = "Акаўнтаў пакуль няма";
+"Open Accounts to add your first account…" = "Адкрыць «Акаўнты» і дадаць першы…";
+"Manage accounts…" = "Кіраванне акаўнтамі…";
+"Finish adding an account…" = "Завяршыць дадаванне акаўнта…";
+"Your current Claude login will be added. Sign into Claude if needed, then choose Done, signed in in this window." = "Будзе дададзены бягучы акаўнт Claude. Пры неабходнасці ўвайдзіце ў Claude, затым націсніце «Гатова, уваход выкананы» ў гэтым акне.";
+"Claude will open a fresh sign-in screen. Sign into the new account, then choose Done, signed in in this window." = "Claude адкрые чысты экран уваходу. Увайдзіце ў новы акаўнт, затым націсніце «Гатова, уваход выкананы» ў гэтым акне.";
+"Cancelling account addition…" = "Скасаванне дадавання акаўнта…";
+"Remove “%@” from Claudeway?" = "Выдаліць «%@» з Claudeway?";
+"This removes the account from the switcher. Your current Claude login, chats and backups stay on this Mac. You can add the account again later." = "Акаўнт знікне з пераключальніка. Бягучы ўваход у Claude, чаты і рэзервовыя копіі застануцца на Mac. Пазней можна дадаць акаўнт зноў.";
+"Remove account" = "Выдаліць акаўнт";
+"Remove account…" = "Выдаліць акаўнт…";
+"Use this account" = "Пераключыцца";
+"Add accounts, change their names, or remove them from Claudeway." = "Дадавайце акаўнты, змяняйце назвы або выдаляйце іх з Claudeway.";
+"No accounts yet. Click Add account to get started." = "Акаўнтаў пакуль няма. Націсніце «Дадаць акаўнт», каб пачаць.";
+"Accounts are unavailable. Finish recovery from the menu, then return here." = "Акаўнты недаступныя. Завяршыце аднаўленне праз меню і вярніцеся сюды.";
+"Sign into the account you want to save in Claude, then click Done, signed in. Cancelling keeps your current Claude login." = "Увайдзіце ў патрэбны акаўнт у Claude, затым націсніце «Гатова, уваход выкананы». Скасаванне захавае бягучы ўваход у Claude.";
+"Sign into the new account in Claude, then click Done, signed in. Cancel returns to the previous account." = "Увайдзіце ў новы акаўнт у Claude, затым націсніце «Гатова, уваход выкананы». Скасаванне верне папярэдні акаўнт.";
+"Finish sign-in" = "Завяршыце ўваход";
+"Active" = "Актыўны";
+"Checking Keychain access…" = "Праверка доступу да Keychain…";
+"Allow Keychain access…" = "Дазволіць доступ да Keychain…";
+"Keychain access…" = "Доступ да Keychain…";
+"Open Claude and sign in first" = "Спачатку адкрыйце Claude і ўвайдзіце";
+
+"Chat transfer" = "Перанос чатаў";
+
+"Chat transfer…" = "Перанос чатаў…";
+
+"All projects" = "Усе праекты";
+
+"Selected projects only" = "Толькі выбраныя праекты";
+
+"Transfer disabled" = "Перанос выключаны";
+
+"Copy and update local Code chats when switching accounts. Excluded projects and existing copies stay untouched. Cloud chats and project files are not transferred." = "Капіяваць і абнаўляць лакальныя Code-чаты пры пераключэнні акаўнта. Выключаныя праекты і старыя копіі застануцца як ёсць. Воблачныя чаты і файлы праектаў не пераносяцца.";
+
+"Find a project" = "Знайсці праект";
+
+"Select all" = "Выбраць усе";
+
+"Deselect all" = "Зняць выбар";
+
+"Projects appear here after local Code chats are created." = "Праекты з’явяцца тут пасля стварэння лакальных Code-чатаў.";
+
+"No matching projects" = "Праекты не знойдзены";
+
+"Selected: %@ of %@" = "Выбрана: %@ з %@";
+
+"Chats: %@" = "Чатаў: %@";
+
+"New projects are included automatically." = "Новыя праекты дадаюцца аўтаматычна.";
+
+"New projects must be selected manually." = "Новыя праекты трэба адзначаць уручную.";
+
+"Invalid chat transfer settings. Choose the projects again." = "Налады пераносу пашкоджаны. Выберыце праекты нанова.";

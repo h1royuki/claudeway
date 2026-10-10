@@ -7,6 +7,8 @@ import SwitcherCore
     private(set) var refreshing = false
     var onChange: (() -> Void)?
     var onRefreshCompleted: (([AccountUsage]) -> Void)?
+    var onKeychainDenied: (() -> Void)?
+    private var hasKeychainAccess = false
     private let root: URL
     private let live: URL
     private var task: Task<Void, Never>?
@@ -16,7 +18,7 @@ import SwitcherCore
     private let demo: Bool
     init(root: URL, live: URL, demo: Bool) { self.root = root; self.live = live; self.demo = demo }
 
-    func refresh(_ state: ProfileState, force: Bool = false, allowKeychainPrompt: Bool = false) {
+    func refresh(_ state: ProfileState, force: Bool = false) {
         guard !refreshing else { return }
         let cacheURL = root.appendingPathComponent("usage-cache.json")
         if !cacheLoaded {
@@ -47,6 +49,10 @@ import SwitcherCore
                 if values[profile.id]?.source != "server", values[profile.id].map({ $0.observedAt < sample.observedAt }) ?? true { values[profile.id] = sample }
             }
         }
+        guard hasKeychainAccess else {
+            for profile in state.profiles where profile.id != state.pending?.id { errors[profile.id] = UsageFailure.keychain.errorDescription }
+            onChange?(); return
+        }
         let now = Date()
         let targets = state.profiles.filter { profile in
             guard profile.id != state.pending?.id else { return false }
@@ -59,13 +65,13 @@ import SwitcherCore
         task = Task { [weak self] in
             guard let self else { return }
             var samples: [AccountUsage] = []
-            var promptAllowed = allowKeychainPrompt
             for profile in targets {
                 guard !Task.isCancelled, self.generation == current else { return }
+                guard self.hasKeychainAccess else { self.errors[profile.id] = UsageFailure.keychain.errorDescription; continue }
                 self.polling.started(profile.id)
                 self.polling.save(at: self.root.appendingPathComponent("usage-polling.json"))
                 do {
-                    let sample = try await UsageClient().fetch(profile: profile, activeID: state.activeID, root: self.root, live: self.live, allowKeychainPrompt: promptAllowed)
+                    let sample = try await UsageClient().fetch(profile: profile, activeID: state.activeID, root: self.root, live: self.live)
                     guard !Task.isCancelled, self.generation == current else { return }
                     samples.append(sample)
                     self.values[profile.id] = sample
@@ -79,7 +85,7 @@ import SwitcherCore
                         self.polling.rateLimited(profile.id, delay: seconds)
                         self.polling.save(at: self.root.appendingPathComponent("usage-polling.json"))
                     }
-                    if case .keychain = failure { promptAllowed = false }
+                    if case .keychain = failure { self.hasKeychainAccess = false; self.onKeychainDenied?() }
                 }
                 // Only public error labels and statistics; useful when a background
                 // request fails while the menu is closed. No request/response bodies.
@@ -102,7 +108,17 @@ import SwitcherCore
         try? UsageCache.save(values, at: root.appendingPathComponent("usage-cache.json"))
         onChange?()
     }
+    func setKeychainAccess(_ allowed: Bool) {
+        hasKeychainAccess = allowed
+        if allowed { errors = errors.filter { L10n.canonicalMessage($0.value) != "Keychain access required" } }
+    }
     func reloadPolling() { polling = UsagePolling.load(at: root.appendingPathComponent("usage-polling.json")) }
+    func retainProfiles(_ profiles: [Profile]) {
+        let ids = Set(profiles.map(\.id))
+        values = values.filter { ids.contains($0.key) }
+        errors = errors.filter { ids.contains($0.key) }
+        try? UsageCache.save(values, at: root.appendingPathComponent("usage-cache.json"))
+    }
 
     func pause() {
         generation += 1

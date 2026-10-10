@@ -37,6 +37,10 @@ public enum SessionTransfer {
         let json: [String: Any]
         let id: String
         let activity: Double
+        var project: String {
+            TransferSettings.projectPath(json["originCwd"] as? String)
+                ?? TransferSettings.projectPath(json["cwd"] as? String)!
+        }
     }
 
     private static func isDirectory(_ url: URL) -> Bool {
@@ -76,7 +80,7 @@ public enum SessionTransfer {
               let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
               json["sessionId"] as? String == name,
               let cliID = json["cliSessionId"] as? String, UUID(uuidString: cliID) != nil,
-              let cwd = json["cwd"] as? String, cwd.hasPrefix("/"),
+              let cwd = json["cwd"] as? String, TransferSettings.projectPath(cwd) != nil,
               let activity = json["lastActivityAt"] as? NSNumber,
               activity.doubleValue.isFinite,
               json["sshConnectionId"] == nil, json["sshHost"] == nil,
@@ -100,8 +104,9 @@ public enum SessionTransfer {
 
     @discardableResult
     public static func synchronize(sources: [URL], target: URL, backupRoot: URL,
-                                   transcriptRoot: URL? = nil, requireStopped: () throws -> Void) throws -> SessionTransferReport {
+                                   transcriptRoot: URL? = nil, settings: TransferSettings = TransferSettings(), requireStopped: () throws -> Void) throws -> SessionTransferReport {
         try requireStopped()
+        guard settings.mode != .disabled else { return SessionTransferReport() }
         var report = SessionTransferReport()
         var targets = organizationDirectories(target)
         // Claude may create an empty scheduled-tasks directory for a second
@@ -122,7 +127,7 @@ public enum SessionTransfer {
             return report
         }
         let allDirectories = Set((sources + [target]).flatMap(organizationDirectories))
-        return try synchronizeDirectories(allDirectories, destinationDirectory, backupRoot, transcriptRoot, requireStopped)
+        return try synchronizeDirectories(allDirectories, destinationDirectory, backupRoot, transcriptRoot, settings, requireStopped)
     }
 
     private static func sharedOrganizations(in root: URL, accountID: UUID) -> [URL] {
@@ -132,6 +137,26 @@ public enum SessionTransfer {
                 .first(where: { UUID(uuidString: $0.lastPathComponent) == accountID && isDirectory($0) }) else { return [] }
         return ((try? fm.contentsOfDirectory(at: account, includingPropertiesForKeys: nil)) ?? [])
             .filter { UUID(uuidString: $0.lastPathComponent) != nil && isDirectory($0) }
+    }
+
+    /// Lists supported local projects for registered accounts without exposing
+    /// transcript contents. One chat is counted once even if already imported.
+    public static func projects(dataRoot: URL, accounts: [UUID], transcriptRoot: URL? = nil) throws -> [TransferProject] {
+        let directories = Set(accounts.flatMap { sharedOrganizations(in: dataRoot, accountID: $0) })
+        var records: [Record] = []
+        var deleted = Set<String>()
+        for directory in directories {
+            for file in try fm.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil) {
+                if let id = deletedID(file) { deleted.insert(id) }
+                else if let chat = record(file, transcriptRoot: transcriptRoot) { records.append(chat) }
+            }
+        }
+        var projects: [String: Set<String>] = [:]
+        for chat in records where !deleted.contains(chat.id.lowercased()) {
+            projects[chat.project, default: []].insert(chat.id.lowercased())
+        }
+        return projects.map { TransferProject(path: $0.key, chatCount: $0.value.count) }
+            .sorted { $0.path.localizedStandardCompare($1.path) == .orderedAscending }
     }
 
     public static func sharedTargetDirectory(in root: URL, accountID: UUID, organizationID: UUID?, transcriptRoot: URL? = nil) -> URL? {
@@ -146,17 +171,18 @@ public enum SessionTransfer {
 
     public static func synchronizeShared(dataRoot: URL, accounts: [UUID], targetAccount: UUID,
                                          targetOrganization: UUID?, backupRoot: URL,
-                                         transcriptRoot: URL? = nil, requireStopped: () throws -> Void) throws -> SessionTransferReport {
+                                         transcriptRoot: URL? = nil, settings: TransferSettings = TransferSettings(), requireStopped: () throws -> Void) throws -> SessionTransferReport {
         try requireStopped()
+        guard settings.mode != .disabled else { return SessionTransferReport() }
         guard let destination = sharedTargetDirectory(in: dataRoot, accountID: targetAccount, organizationID: targetOrganization, transcriptRoot: transcriptRoot) else {
             return SessionTransferReport(note: L10n.text("History: create a local chat; organization not identified yet"))
         }
         let directories = Set(accounts.flatMap { sharedOrganizations(in: dataRoot, accountID: $0) })
-        return try synchronizeDirectories(directories, destination, backupRoot, transcriptRoot, requireStopped)
+        return try synchronizeDirectories(directories, destination, backupRoot, transcriptRoot, settings, requireStopped)
     }
 
     private static func synchronizeDirectories(_ allDirectories: Set<URL>, _ destinationDirectory: URL,
-                                               _ backupRoot: URL, _ transcriptRoot: URL?, _ requireStopped: () throws -> Void) throws -> SessionTransferReport {
+                                               _ backupRoot: URL, _ transcriptRoot: URL?, _ settings: TransferSettings, _ requireStopped: () throws -> Void) throws -> SessionTransferReport {
         var report = SessionTransferReport()
         var deleted = Set<String>()
         var candidates: [String: Record] = [:]
@@ -169,7 +195,8 @@ public enum SessionTransfer {
                       file.lastPathComponent.hasPrefix("local_"), file.pathExtension == "json" else { continue }
                 guard let candidate = record(file, transcriptRoot: transcriptRoot) else { report.skipped += 1; continue }
                 if let previous = candidates[candidate.id] {
-                    if previous.json["cliSessionId"] as? String != candidate.json["cliSessionId"] as? String {
+                    if previous.json["cliSessionId"] as? String != candidate.json["cliSessionId"] as? String
+                        || previous.project != candidate.project {
                         conflicts.insert(candidate.id)
                     }
                     if candidate.activity > previous.activity { candidates[candidate.id] = candidate }
@@ -184,6 +211,7 @@ public enum SessionTransfer {
         }
         var changes: [Change] = []
         for source in candidates.values.sorted(by: { $0.id < $1.id }) {
+            guard settings.includes(source.project) else { continue }
             guard !deleted.contains(source.id.lowercased()), !conflicts.contains(source.id) else {
                 report.skipped += 1; continue
             }
@@ -192,7 +220,8 @@ public enum SessionTransfer {
             let existing = attributes == nil ? nil : record(destination, transcriptRoot: transcriptRoot)
             if attributes != nil && existing == nil { report.skipped += 1; continue }
             if let existing {
-                guard existing.json["cliSessionId"] as? String == source.json["cliSessionId"] as? String,
+                guard existing.project == source.project, settings.includes(existing.project),
+                      existing.json["cliSessionId"] as? String == source.json["cliSessionId"] as? String,
                       source.activity > existing.activity else { report.skipped += 1; continue }
             }
             // Preserve destination-local grants and connectors for existing chats.

@@ -61,3 +61,45 @@ Automated tests cover state transitions and failures on synthetic data. They do
 not prove UI behavior, every Desktop version, sleep/wake, real account continuation,
 notification delivery or Keychain prompts. Those require a separately authorized
 manual check on a supported Mac. Do not publish the resulting personal test records.
+
+## Account management
+
+The Accounts window edits metadata only for rename/removal. Removing an entry does
+not log out Desktop, delete chats or purge immutable recovery snapshots. The last
+removal writes a valid empty list. Fresh installations also start empty without
+capturing a Desktop account; the first account is added explicitly.
+
+The v2 state accepts a nullable active ID for an untracked Desktop login and a
+nullable previous ID when adding that login. Existing non-null IDs decode unchanged.
+Switching from an untracked login snapshots it before applying a saved account;
+rollback uses the same auth journal, including nullable-target recovery. Older app
+versions do not support these empty/untracked states; keep version 2.8 or newer.
+
+Pending additions and recovery block rename/removal. App-level busy state serializes
+management with window-start requests. Removed account IDs cannot become trigger
+targets because all requests are filtered through the current profile list.
+
+## Keychain access
+
+Startup performs a silent read-only permission probe for Claude Safe Storage. Only
+an interaction-required result permits one foreground authorization request. Denial
+is retained in memory for that run; manual retry is a separate Settings action.
+The check does not depend on network, usage throttle or an account being selected.
+
+Usage and trigger credential reads cannot request UI. They fail closed if Keychain
+interaction cannot be disabled. Revoked access disables polling until the user
+requests access again. Tests inject permission outcomes and never read real Keychain
+items; build-time localization checks exit before any startup authorization.
+
+## Project transfer policy
+
+`TransferSettings` stores a versioned global all/selected/disabled policy in a
+private atomic JSON file. Missing settings retain all-project behavior; malformed,
+unsupported or unsafe settings fail closed. `ProfileStore.transferSessions` loads
+the policy for every operation. `SessionTransfer` groups by lexical normalized
+`originCwd`, falling back to `cwd`, without resolving symlinks or traversing projects.
+Selections match exact project paths, not descendants or folder names. Conflicting
+project identities for a session are skipped. Deletion markers are processed before
+filtering, so an excluded record cannot resurrect a deleted chat. Existing target
+records remain untouched when excluded. The catalog deduplicates supported local
+chats across registered accounts; saved paths remain selectable when no longer found.

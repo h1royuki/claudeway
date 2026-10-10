@@ -36,8 +36,8 @@ final class SessionTransferTests: TestCase {
          "alwaysAllowedReasons": ["source-grant"], "spawnSeed": ["source": "secret"],
          "promptAppendSnapshot": "source instructions", "toolSurfaceSnapshot": "source tools"]
     }
-    private func sync(check: () throws -> Void = {}) throws -> SessionTransferReport {
-        try SessionTransfer.synchronize(sources: [source], target: target, backupRoot: backups, transcriptRoot: root.appendingPathComponent("transcripts"), requireStopped: check)
+    private func sync(settings: TransferSettings = TransferSettings(), check: () throws -> Void = {}) throws -> SessionTransferReport {
+        try SessionTransfer.synchronize(sources: [source], target: target, backupRoot: backups, transcriptRoot: root.appendingPathComponent("transcripts"), settings: settings, requireStopped: check)
     }
 
     private var transcript: URL { root.appendingPathComponent("transcripts/-tmp-synthetic-project/" + cli + ".jsonl") }
@@ -251,5 +251,99 @@ final class SessionTransferTests: TestCase {
         })
         XCTAssertFalse(FileManager.default.fileExists(atPath: targetFile.path))
         XCTAssertFalse(FileManager.default.fileExists(atPath: targetSessions.appendingPathComponent(secondID + ".json").path))
+    }
+
+    func testSelectedProjectsFilterImportsAndUpdates() throws {
+        try json(entry(), at: sourceFile)
+        var settings = TransferSettings(); settings.mode = .selected
+        settings.projects = ["/tmp/other"]
+        XCTAssertEqual(try sync(settings: settings).added, 0)
+        settings.projects = ["/tmp/synthetic-project"]
+        XCTAssertEqual(try sync(settings: settings).added, 1)
+        let original = try Data(contentsOf: targetFile)
+        try json(entry(activity: 300), at: sourceFile)
+        settings.projects = []
+        XCTAssertEqual(try sync(settings: settings).updated, 0)
+        XCTAssertEqual(try Data(contentsOf: targetFile), original)
+        settings.projects = ["/tmp/synthetic-project"]
+        XCTAssertEqual(try sync(settings: settings).updated, 1)
+        XCTAssertEqual(try read(targetFile)["permissionMode"] as? String, "default")
+        XCTAssertEqual(try sync(settings: settings).updated, 0)
+    }
+    func testDisabledAndEmptySelectionPreserveData() throws {
+        try json(entry(), at: sourceFile)
+        try json(entry(activity: 100), at: targetFile)
+        let before = try Data(contentsOf: targetFile)
+        var settings = TransferSettings(); settings.mode = .disabled
+        settings.projects = ["/tmp/synthetic-project"]
+        XCTAssertEqual(try sync(settings: settings).updated, 0)
+        settings.mode = .selected; settings.projects = []
+        XCTAssertEqual(try sync(settings: settings).updated, 0)
+        XCTAssertEqual(try Data(contentsOf: targetFile), before)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: backups.path))
+    }
+    func testProjectOriginAndExactMatching() throws {
+        var chat = entry(); chat["cwd"] = "/tmp/worktree"; chat["originCwd"] = "/tmp/repo/./"
+        try json(chat, at: sourceFile)
+        var settings = TransferSettings(); settings.mode = .selected; settings.projects = ["/tmp/repo"]
+        XCTAssertEqual(try sync(settings: settings).added, 1)
+        try FileManager.default.removeItem(at: targetFile)
+        chat["originCwd"] = "/tmp/repo-other"; try json(chat, at: sourceFile)
+        XCTAssertEqual(try sync(settings: settings).added, 0)
+        chat["originCwd"] = "relative"; try json(chat, at: sourceFile)
+        settings.projects = ["/tmp/worktree"]
+        XCTAssertEqual(try sync(settings: settings).added, 1)
+    }
+    func testProjectIdentityConflictsAreSkipped() throws {
+        try json(entry(), at: sourceFile)
+        var other = entry(activity: 100); other["cwd"] = "/tmp/other"
+        try json(other, at: targetFile)
+        let before = try Data(contentsOf: targetFile)
+        XCTAssertEqual(try sync().updated, 0)
+        XCTAssertEqual(try Data(contentsOf: targetFile), before)
+        try FileManager.default.removeItem(at: targetFile)
+        let second = source.appendingPathComponent("claude-code-sessions/\(account)/\(orgB)")
+        try FileManager.default.createDirectory(at: second, withIntermediateDirectories: true)
+        try json(other, at: second.appendingPathComponent(session + ".json"))
+        var settings = TransferSettings(); settings.mode = .selected; settings.projects = ["/tmp/synthetic-project"]
+        XCTAssertEqual(try sync(settings: settings).added, 0)
+    }
+    func testProjectCatalogDeduplicatesAndHonorsBoundaries() throws {
+        try json(entry(), at: sourceFile)
+        let second = source.appendingPathComponent("claude-code-sessions/\(account)/\(orgB)")
+        let unknown = source.appendingPathComponent("claude-code-sessions/\(UUID().uuidString)/\(orgB)")
+        for dir in [second, unknown] {
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            try json(entry(), at: dir.appendingPathComponent(session + ".json"))
+        }
+        var remote = entry(); remote["sshHost"] = "remote"
+        let remoteID = "local_" + UUID().uuidString; remote["sessionId"] = remoteID
+        try json(remote, at: sourceSessions.appendingPathComponent(remoteID + ".json"))
+        var hidden = entry(); hidden["cwd"] = "/tmp/unknown"
+        try json(hidden, at: unknown.appendingPathComponent(session + ".json"))
+        let accounts = [UUID(uuidString: account)!]
+        let projects = try SessionTransfer.projects(dataRoot: source, accounts: accounts, transcriptRoot: root.appendingPathComponent("transcripts"))
+        XCTAssertEqual(projects, [TransferProject(path: "/tmp/synthetic-project", chatCount: 1)])
+        try Data().write(to: second.appendingPathComponent("deleted_" + session))
+        XCTAssertTrue(try SessionTransfer.projects(dataRoot: source, accounts: accounts).isEmpty)
+    }
+    func testTransferSettingsPersistAndFailClosed() throws {
+        XCTAssertEqual(try TransferSettings.load(at: root).mode, .all)
+        var settings = TransferSettings(); settings.mode = .selected; settings.projects = ["/tmp/not-mounted", "/tmp/other"]
+        try settings.save(at: root)
+        XCTAssertEqual(try TransferSettings.load(at: root), settings)
+        settings.mode = .disabled; try settings.save(at: root)
+        XCTAssertEqual(try TransferSettings.load(at: root), settings)
+        let file = root.appendingPathComponent("chat-transfer-settings.json")
+        XCTAssertEqual((try FileManager.default.attributesOfItem(atPath: file.path)[.posixPermissions] as? NSNumber)?.intValue, 0o600)
+        for data in ["{}", "broken", "{\"version\":99,\"mode\":\"all\",\"projects\":[]}", "{\"version\":1,\"mode\":\"selected\",\"projects\":[\"relative\"]}"] {
+            try Data(data.utf8).write(to: file)
+            XCTAssertThrowsError(try TransferSettings.load(at: root))
+        }
+        settings.mode = .selected; settings.projects = []
+        try settings.save(at: root); XCTAssertEqual(try TransferSettings.load(at: root), settings)
+        try FileManager.default.removeItem(at: file)
+        try FileManager.default.createSymbolicLink(at: file, withDestinationURL: sourceFile)
+        XCTAssertThrowsError(try TransferSettings.load(at: root))
     }
 }

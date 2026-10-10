@@ -152,3 +152,58 @@
 "now" = "сейчас";
 "refresh" = "обновить";
 "unknown" = "неизвестен";
+"No accounts yet" = "Аккаунтов пока нет";
+"Open Accounts to add your first account…" = "Открыть «Аккаунты» и добавить первый…";
+"Manage accounts…" = "Управление аккаунтами…";
+"Finish adding an account…" = "Завершить добавление аккаунта…";
+"Your current Claude login will be added. Sign into Claude if needed, then choose Done, signed in in this window." = "Будет добавлен текущий аккаунт Claude. Если нужно, войдите в Claude, затем нажмите «Готово, я вошёл» в этом окне.";
+"Claude will open a fresh sign-in screen. Sign into the new account, then choose Done, signed in in this window." = "Claude откроет чистый экран входа. Войдите в новый аккаунт, затем нажмите «Готово, я вошёл» в этом окне.";
+"Cancelling account addition…" = "Отмена добавления аккаунта…";
+"Remove “%@” from Claudeway?" = "Удалить «%@» из Claudeway?";
+"This removes the account from the switcher. Your current Claude login, chats and backups stay on this Mac. You can add the account again later." = "Аккаунт исчезнет из переключателя. Текущий вход в Claude, чаты и резервные копии останутся на Mac. Позже можно добавить аккаунт снова.";
+"Remove account" = "Удалить аккаунт";
+"Remove account…" = "Удалить аккаунт…";
+"Use this account" = "Переключиться";
+"Add accounts, change their names, or remove them from Claudeway." = "Добавляйте аккаунты, меняйте названия или удаляйте их из Claudeway.";
+"No accounts yet. Click Add account to get started." = "Аккаунтов пока нет. Нажмите «Добавить аккаунт», чтобы начать.";
+"Accounts are unavailable. Finish recovery from the menu, then return here." = "Аккаунты недоступны. Завершите восстановление через меню и вернитесь сюда.";
+"Sign into the account you want to save in Claude, then click Done, signed in. Cancelling keeps your current Claude login." = "Войдите в нужный аккаунт в Claude, затем нажмите «Готово, я вошёл». Отмена сохранит текущий вход в Claude.";
+"Sign into the new account in Claude, then click Done, signed in. Cancel returns to the previous account." = "Войдите в новый аккаунт в Claude, затем нажмите «Готово, я вошёл». Отмена вернёт предыдущий аккаунт.";
+"Finish sign-in" = "Завершите вход";
+"Active" = "Активный";
+"Checking Keychain access…" = "Проверка доступа к Keychain…";
+"Allow Keychain access…" = "Разрешить доступ к Keychain…";
+"Keychain access…" = "Доступ к Keychain…";
+"Open Claude and sign in first" = "Сначала откройте Claude и войдите";
+
+"Chat transfer" = "Перенос чатов";
+
+"Chat transfer…" = "Перенос чатов…";
+
+"All projects" = "Все проекты";
+
+"Selected projects only" = "Только выбранные проекты";
+
+"Transfer disabled" = "Перенос выключен";
+
+"Copy and update local Code chats when switching accounts. Excluded projects and existing copies stay untouched. Cloud chats and project files are not transferred." = "Копировать и обновлять локальные Code-чаты при переключении аккаунта. Исключённые проекты и старые копии останутся как есть. Облачные чаты и файлы проектов не переносятся.";
+
+"Find a project" = "Найти проект";
+
+"Select all" = "Выбрать все";
+
+"Deselect all" = "Снять выбор";
+
+"Projects appear here after local Code chats are created." = "Проекты появятся здесь после создания локальных Code-чатов.";
+
+"No matching projects" = "Проекты не найдены";
+
+"Selected: %@ of %@" = "Выбрано: %@ из %@";
+
+"Chats: %@" = "Чатов: %@";
+
+"New projects are included automatically." = "Новые проекты добавляются автоматически.";
+
+"New projects must be selected manually." = "Новые проекты нужно отмечать вручную.";
+
+"Invalid chat transfer settings. Choose the projects again." = "Настройки переноса повреждены. Выберите проекты заново.";

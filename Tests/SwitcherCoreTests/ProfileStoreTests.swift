@@ -44,6 +44,35 @@ final class ProfileStoreTests: TestCase {
     func config() throws -> [String: Any] { try JSONSerialization.jsonObject(with: Data(contentsOf: store.live.appendingPathComponent("config.json"))) as! [String: Any] }
     func token() throws -> String? { try config()["oauth:tokenCache"] as? String }
 
+    func testStoredTransferPolicyUsedAcrossAccounts() throws {
+        let org = UUID().uuidString
+        let source = store.live.appendingPathComponent("claude-code-sessions/\(accountA.uuidString)/\(org)")
+        let target = store.live.appendingPathComponent("claude-code-sessions/\(accountB.uuidString)/\(org)")
+        for directory in [source, target] { try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true) }
+        let id = "local_" + UUID().uuidString
+        var chat: [String: Any] = ["sessionId": id, "cliSessionId": UUID().uuidString, "cwd": "/tmp/chosen", "lastActivityAt": 100, "completedTurns": 1]
+        let sourceFile = source.appendingPathComponent(id + ".json"), targetFile = target.appendingPathComponent(id + ".json")
+        try JSONSerialization.data(withJSONObject: chat).write(to: sourceFile)
+        var settings = TransferSettings(); settings.mode = .selected; settings.projects = ["/tmp/other"]
+        try store.saveTransferSettings(settings)
+        try store.switchProfile(to: b, requireStopped: {})
+        XCTAssertEqual(try store.transferSessions(requireStopped: {}).added, 0)
+        settings.projects = ["/tmp/chosen"]; try store.saveTransferSettings(settings)
+        XCTAssertEqual(try store.transferSessions(requireStopped: {}).added, 1)
+        chat["lastActivityAt"] = 200
+        try JSONSerialization.data(withJSONObject: chat).write(to: targetFile)
+        let before = try Data(contentsOf: sourceFile)
+        settings.mode = .disabled; try store.saveTransferSettings(settings)
+        try store.switchProfile(to: a, requireStopped: {})
+        XCTAssertEqual(try store.transferSessions(requireStopped: {}).updated, 0)
+        XCTAssertEqual(try Data(contentsOf: sourceFile), before)
+        settings.mode = .selected; try store.saveTransferSettings(settings)
+        XCTAssertEqual(try store.transferSessions(requireStopped: {}).updated, 1)
+        XCTAssertEqual(try store.transferProjects(), [TransferProject(path: "/tmp/chosen", chatCount: 1)])
+        try Data("invalid".utf8).write(to: store.root.appendingPathComponent("chat-transfer-settings.json"))
+        XCTAssertThrowsError(try store.transferSessions(requireStopped: {}))
+    }
+
     func testRoundTripKeepsCommonRootAndSettings() throws {
         let inode = try FileManager.default.attributesOfItem(atPath: store.live.path)[.systemFileNumber] as? NSNumber
         let settings = try Data(contentsOf: store.live.appendingPathComponent("claude_desktop_config.json"))
@@ -89,7 +118,7 @@ final class ProfileStoreTests: TestCase {
         XCTAssertEqual(try config()["theme"] as? String, "shared")
         XCTAssertFalse(FileManager.default.fileExists(atPath: store.live.appendingPathComponent("Cookies").path))
         XCTAssertThrowsError(try store.finishAdding(requireStopped: {}))
-        try store.switchProfile(to: p.previousID, requireStopped: {})
+        try store.switchProfile(to: p.previousID!, requireStopped: {})
         let result = try store.cancelAdding()
         XCTAssertNil(result.pending)
         XCTAssertEqual(result.profiles.count, 2)

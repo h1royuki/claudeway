@@ -13,6 +13,7 @@ finds(b'/Users/' + b'example/local/file.swift', 'local-home-path')
 finds(b'sk-ant-api' + b'x' * 40, 'service-token')
 finds(b'person' + b'@' + b'example.invalid', 'email')
 finds(b'{"name":"demo"}', 'private-or-runtime-file', 'profiles.json')
+finds(b'{}', 'private-or-runtime-file', 'chat-transfer-settings.json')
 finds(b'12345678' + b'-1234-4234-8234-123456789abc', 'unreviewed-uuid')
 archive = io.BytesIO()
 with zipfile.ZipFile(archive, 'w') as z:
